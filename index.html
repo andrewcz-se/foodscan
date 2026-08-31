@@ -1206,28 +1206,42 @@
         // Clean up previous instance and DOM completely
         await resetScannerInstance();
 
-        // Supported barcode formats focused on 1D retail and QR codes
+        // Retail food barcode formats only, reducing work per frame.
         const supportedFormats = [
           Html5QrcodeSupportedFormats.EAN_13,
           Html5QrcodeSupportedFormats.EAN_8,
           Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.QR_CODE
+          Html5QrcodeSupportedFormats.UPC_E
         ];
 
         state.html5QrCode = new Html5Qrcode("reader", {
           formatsToSupport: supportedFormats,
-          verbose: false
+          verbose: false,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+          }
         });
 
-        // "environment" is the portable rear-camera request. Leave resolution,
-        // lens selection and zoom at the browser's native defaults.
+        // videoConstraints contains the complete camera request because
+        // html5-qrcode uses it instead of cameraIdentifier when supplied.
         const cameraIdentifier = { facingMode: 'environment' };
         const scanConfig = {
-          fps: 12,
-          disableFlip: true
+          fps: 15,
+          qrbox: (viewfinderWidth, viewfinderHeight) => ({
+            width: Math.max(50, Math.floor(Math.min(viewfinderWidth * 0.86, 290))),
+            height: Math.max(50, Math.floor(Math.min(viewfinderHeight * 0.45, 144)))
+          }),
+          disableFlip: true,
+          videoConstraints: {
+            facingMode: 'environment',
+            // Advanced sets are optional: older phones ignore unsupported
+            // focus/zoom preferences while modern phones start zoomed without
+            // reconfiguring an already-running iOS camera stream.
+            advanced: [
+              { focusMode: 'continuous' },
+              { zoom: 2.0 }
+            ]
+          }
         };
 
         try {
