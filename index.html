@@ -71,30 +71,56 @@
       padding-bottom: env(safe-area-inset-bottom);
     }
     
-    /* Ensure iOS video does not go fullscreen */
+    /* Ensure iOS video renders properly within container */
+    #reader {
+      border: none !important;
+      background: #020617 !important;
+      position: absolute !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      overflow: hidden !important;
+      border-radius: 1rem !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    #reader__scan_region {
+      width: 100% !important;
+      height: 100% !important;
+      position: absolute !important;
+      inset: 0 !important;
+      background: transparent !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
     #reader video {
+      position: absolute !important;
+      inset: 0 !important;
       width: 100% !important;
       height: 100% !important;
       object-fit: cover !important;
       border-radius: 1rem !important;
-      playsinline: true !important;
-      -webkit-playsinline: true !important;
+      z-index: 1 !important;
       transition: transform 0.2s ease-out;
     }
 
-    #reader {
-      border: none !important;
-      background: transparent !important;
-      position: relative;
-      overflow: hidden;
-      border-radius: 1rem;
-    }
-
-    #reader__scan_region {
-      background: transparent !important;
+    /* Hide html5-qrcode default black shaded overlay */
+    #qr-shaded-region {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
     }
 
     #reader__dashboard {
+      display: none !important;
+    }
+
+    #qr-canvas {
       display: none !important;
     }
 
@@ -1380,21 +1406,17 @@
         // 1st Argument: Camera Identifier (string deviceId OR { facingMode: "environment" | "user" })
         const cameraIdentifier = deviceId ? deviceId : { facingMode: state.currentFacingMode };
 
-        // 2nd Argument: Scanner Config with videoConstraints inside
+        // 2nd Argument: Scanner Config without rigid aspectRatio to prevent iOS 17 black screen freeze
         const scanConfig = {
           fps: 15,
           qrbox: (viewfinderWidth, viewfinderHeight) => {
-            // Wide 1D rectangular search box for food barcodes
             const boxWidth = Math.floor(viewfinderWidth * 0.88);
             const boxHeight = Math.floor(Math.min(viewfinderHeight * 0.45, 180));
             return { width: Math.max(boxWidth, 240), height: Math.max(boxHeight, 110) };
           },
-          aspectRatio: 1.0,
           disableFlip: false,
           videoConstraints: {
-            facingMode: state.currentFacingMode,
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+            facingMode: state.currentFacingMode
           }
         };
 
@@ -1412,11 +1434,14 @@
           state.isPaused = false;
           hideCameraError();
           
+          // Force video element to play and render visibly
+          ensureVideoPlayback();
+
           // Query camera capabilities and apply smart default zoom
           await checkCameraCapabilities();
           await enumerateAllCameras();
         } catch (err) {
-          console.warn('Camera start with advanced constraints failed, attempting standard fallback:', err);
+          console.warn('Camera start with standard constraints failed, attempting fallback:', err);
           
           // Cleanly re-create instance for fallback attempt
           try {
@@ -1434,7 +1459,6 @@
                 const boxHeight = Math.floor(Math.min(viewfinderHeight * 0.5, 160));
                 return { width: Math.max(boxWidth, 240), height: Math.max(boxHeight, 100) };
               },
-              aspectRatio: 1.0,
               disableFlip: false
             };
 
@@ -1449,12 +1473,36 @@
             state.isPaused = false;
             hideCameraError();
 
+            ensureVideoPlayback();
             await checkCameraCapabilities();
             await enumerateAllCameras();
           } catch (fallbackErr) {
             console.error('Fatal camera error:', fallbackErr);
             showCameraError(formatCameraErrorMessage(fallbackErr));
           }
+        }
+      }
+
+      function ensureVideoPlayback() {
+        const video = document.querySelector('#reader video');
+        if (video) {
+          video.setAttribute('playsinline', 'true');
+          video.setAttribute('webkit-playsinline', 'true');
+          video.setAttribute('autoplay', 'true');
+          video.setAttribute('muted', 'true');
+          video.muted = true;
+          video.playsInline = true;
+          video.style.opacity = '1';
+          video.style.visibility = 'visible';
+          
+          if (video.paused) {
+            video.play().catch(e => console.warn('Forced play attempt:', e));
+          }
+        }
+
+        const shadedRegion = document.getElementById('qr-shaded-region');
+        if (shadedRegion) {
+          shadedRegion.style.display = 'none';
         }
       }
 
