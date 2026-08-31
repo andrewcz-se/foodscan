@@ -1325,39 +1325,20 @@
       }
 
       // Direct User-Gesture Permission Requester
-      // Fixes the issue where browser denies access once and ignores background calls
       async function requestCameraPermissionDirectly() {
         if (state.isCheckingPermission) return;
         state.isCheckingPermission = true;
 
         // Show loading state on retry button
         dom.retrySpinner.classList.remove('hidden');
-        dom.retryBtnText.textContent = 'Requesting camera...';
+        dom.retryBtnText.textContent = 'Starting camera...';
         dom.retryCameraBtn.disabled = true;
 
         try {
-          // Check for secure context
-          if (window.isSecureContext === false && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-            throw new Error('InsecureContext: Camera access strictly requires an HTTPS connection.');
-          }
-
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            throw new Error('MediaDevicesUnavailable: Your browser does not support camera media stream APIs.');
-          }
-
-          // Direct getUserMedia call triggered from clean User Activation
-          const testStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: state.currentFacingMode } }
-          });
-
-          // If we got the stream, permissions are successfully granted!
-          // Stop the test stream tracks immediately
-          testStream.getTracks().forEach(track => track.stop());
-
           hideCameraError();
-          await cleanupAndRestartScanner();
+          await initCameraScanner();
         } catch (err) {
-          console.warn('Direct permission request failed:', err);
+          console.error('Direct permission request failed:', err);
           showCameraError(formatCameraErrorMessage(err));
         } finally {
           state.isCheckingPermission = false;
@@ -1374,7 +1355,7 @@
           return;
         }
 
-        // Clean up previous instance if stuck
+        // Clean up previous instance and DOM completely
         await resetScannerInstance();
 
         // Supported barcode formats focused on 1D retail and QR codes
@@ -1396,19 +1377,12 @@
           }
         });
 
-        // High-resolution video constraints (1080p/4K ideal)
-        const videoConstraints = {
-          facingMode: deviceId ? undefined : { ideal: state.currentFacingMode },
-          deviceId: deviceId ? { exact: deviceId } : undefined,
-          width: { min: 1280, ideal: 1920, max: 3840 },
-          height: { min: 720, ideal: 1080, max: 2160 },
-          advanced: [
-            { focusMode: "continuous" }
-          ]
-        };
+        // 1st Argument: Camera Identifier (string deviceId OR { facingMode: "environment" | "user" })
+        const cameraIdentifier = deviceId ? deviceId : { facingMode: state.currentFacingMode };
 
-        const config = {
-          fps: 20,
+        // 2nd Argument: Scanner Config with videoConstraints inside
+        const scanConfig = {
+          fps: 15,
           qrbox: (viewfinderWidth, viewfinderHeight) => {
             // Wide 1D rectangular search box for food barcodes
             const boxWidth = Math.floor(viewfinderWidth * 0.88);
@@ -1416,23 +1390,27 @@
             return { width: Math.max(boxWidth, 240), height: Math.max(boxHeight, 110) };
           },
           aspectRatio: 1.0,
-          disableFlip: false
+          disableFlip: false,
+          videoConstraints: {
+            facingMode: state.currentFacingMode,
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
         };
 
         try {
           hideCameraError();
-          
-          const cameraSource = deviceId ? { deviceId: { exact: deviceId } } : videoConstraints;
 
           await state.html5QrCode.start(
-            cameraSource,
-            config,
+            cameraIdentifier,
+            scanConfig,
             onScanSuccess,
             onScanFailure
           );
           
           state.isScannerActive = true;
           state.isPaused = false;
+          hideCameraError();
           
           // Query camera capabilities and apply smart default zoom
           await checkCameraCapabilities();
@@ -1440,17 +1418,39 @@
         } catch (err) {
           console.warn('Camera start with advanced constraints failed, attempting standard fallback:', err);
           
-          // Fallback with standard facingMode
+          // Cleanly re-create instance for fallback attempt
           try {
+            await resetScannerInstance();
+
+            state.html5QrCode = new Html5Qrcode("reader", {
+              formatsToSupport: supportedFormats,
+              verbose: false
+            });
+
+            const basicScanConfig = {
+              fps: 15,
+              qrbox: (viewfinderWidth, viewfinderHeight) => {
+                const boxWidth = Math.floor(viewfinderWidth * 0.85);
+                const boxHeight = Math.floor(Math.min(viewfinderHeight * 0.5, 160));
+                return { width: Math.max(boxWidth, 240), height: Math.max(boxHeight, 100) };
+              },
+              aspectRatio: 1.0,
+              disableFlip: false
+            };
+
             await state.html5QrCode.start(
-              { facingMode: state.currentFacingMode },
-              config,
+              cameraIdentifier,
+              basicScanConfig,
               onScanSuccess,
               onScanFailure
             );
+
             state.isScannerActive = true;
             state.isPaused = false;
+            hideCameraError();
+
             await checkCameraCapabilities();
+            await enumerateAllCameras();
           } catch (fallbackErr) {
             console.error('Fatal camera error:', fallbackErr);
             showCameraError(formatCameraErrorMessage(fallbackErr));
