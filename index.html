@@ -270,13 +270,13 @@
         <!-- FLOATING ZOOM SELECTOR (Crucial for iPhone 14/15/15 Pro & modern Androids) -->
         <div id="zoomPillContainer" class="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-auto z-10">
           <div class="glass-pill px-1 py-1 rounded-full flex items-center space-x-1 shadow-lg border border-slate-700/70">
-            <button type="button" class="zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-300 hover:text-white transition" data-zoom="1">
+            <button type="button" class="zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-slate-950 shadow-sm transition" data-zoom="1">
               1x
             </button>
-            <button type="button" class="zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-slate-950 shadow-sm transition" data-zoom="2">
+            <button type="button" disabled class="zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-600 opacity-50 cursor-not-allowed transition" data-zoom="2">
               2x
             </button>
-            <button type="button" class="zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-300 hover:text-white transition" data-zoom="3">
+            <button type="button" disabled class="zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-600 opacity-50 cursor-not-allowed transition" data-zoom="3">
               3x
             </button>
           </div>
@@ -291,27 +291,12 @@
           </button>
         </div>
 
-        <!-- Camera Controls Float Bar (Torch & Switch Facing) -->
-        <div id="cameraControlsBar" class="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-auto z-10">
-          <!-- Torch Button -->
-          <button id="torchBtn" title="Toggle Flashlight" class="hidden p-2.5 rounded-full bg-slate-900/85 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white shadow-lg transition active:scale-95">
-            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-          </button>
-
-          <!-- Double tap hint badge -->
-          <span class="text-[10px] text-slate-400 bg-slate-950/70 backdrop-blur-md px-2 py-1 rounded-md border border-slate-800 pointer-events-none">
-            Double-tap for 2x
-          </span>
-
-          <!-- Toggle Camera Facing (Front/Back) -->
-          <button id="switchCameraBtn" title="Flip Camera" class="p-2.5 rounded-full bg-slate-900/85 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white shadow-lg transition active:scale-95">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-        </div>
+        <!-- Torch Button -->
+        <button id="torchBtn" title="Toggle Flashlight" class="hidden absolute bottom-3 left-3 z-10 pointer-events-auto p-2.5 rounded-full bg-slate-900/85 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white shadow-lg transition active:scale-95">
+          <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+        </button>
 
         <!-- CAMERA PERMISSION & TROUBLESHOOTING MODAL / OVERLAY -->
         <div id="cameraErrorOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md p-4 sm:p-6 flex flex-col items-center justify-center text-center z-30 overflow-y-auto">
@@ -895,13 +880,12 @@
         html5QrCode: null,
         isScannerActive: false,
         isPaused: false,
-        currentFacingMode: 'environment',
         torchActive: false,
         soundEnabled: localStorage.getItem(APP_CONFIG.soundStorageKey) !== 'false',
         currentProduct: null,
         recentScans: [],
         // Zoom & Lens Management for iPhone 15 & modern flagship cameras
-        currentZoom: 2.0, // Default to 2x on modern phones so barcodes are in sharp focus at natural 15-20cm distance
+        currentZoom: 1.0,
         hardwareZoomSupported: false,
         zoomCapabilities: { min: 1.0, max: 1.0, step: 0.1 },
         availableCameras: [],
@@ -930,7 +914,6 @@
         retrySpinner: document.getElementById('retrySpinner'),
         retryBtnText: document.getElementById('retryBtnText'),
         reloadPageBtn: document.getElementById('reloadPageBtn'),
-        switchCameraBtn: document.getElementById('switchCameraBtn'),
         torchBtn: document.getElementById('torchBtn'),
         lensCycleBtn: document.getElementById('lensCycleBtn'),
         lensLabelText: document.getElementById('lensLabelText'),
@@ -1231,9 +1214,11 @@
               state.zoomCapabilities = capabilities.zoom;
               console.log('Hardware Zoom Supported:', capabilities.zoom);
               
-              // Apply default 2x zoom on back camera if supported
-              const initialZoom = Math.min(Math.max(2.0, capabilities.zoom.min), capabilities.zoom.max);
-              await applyZoom(initialZoom);
+              // Keep the camera at its native 1x setting. In particular, do not
+              // call applyConstraints during startup because Safari may recapture
+              // multi-lens iPhone cameras and leave a black preview.
+              state.currentZoom = 1.0;
+              updateZoomControls();
               return;
             }
           }
@@ -1241,52 +1226,65 @@
           console.warn('Capability check error:', e);
         }
 
-        // Fallback: If hardware zoom is not exposed by Safari WebKit, use CSS/Digital zoom
+        // CSS scaling only enlarges the preview, not the frames decoded by the
+        // scanner, so cameras without hardware zoom remain at native 1x.
         state.hardwareZoomSupported = false;
-        applyZoom(state.currentZoom);
+        state.currentZoom = 1.0;
+        updateZoomControls();
       }
 
-      async function applyZoom(zoomFactor) {
-        state.currentZoom = parseFloat(zoomFactor);
-
-        // Update Zoom Pill UI Buttons
+      function updateZoomControls() {
         document.querySelectorAll('.zoom-btn').forEach(btn => {
-          const z = parseFloat(btn.getAttribute('data-zoom'));
-          if (Math.abs(z - state.currentZoom) < 0.2) {
+          const zoom = parseFloat(btn.getAttribute('data-zoom'));
+          const supported = zoom === 1 || (
+            state.hardwareZoomSupported &&
+            zoom >= (state.zoomCapabilities.min || 1) &&
+            zoom <= (state.zoomCapabilities.max || 1)
+          );
+          const selected = Math.abs(zoom - state.currentZoom) < 0.2;
+
+          btn.disabled = !supported;
+          if (!supported) {
+            btn.className = 'zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-600 opacity-50 cursor-not-allowed transition';
+          } else if (selected) {
             btn.className = 'zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-slate-950 shadow-sm transition';
           } else {
             btn.className = 'zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-300 hover:text-white transition';
           }
         });
+      }
 
-        // Try applying native hardware track constraint
+      async function applyZoom(zoomFactor) {
+        const requestedZoom = parseFloat(zoomFactor);
+        if (!Number.isFinite(requestedZoom)) return;
+
+        // Avoid reapplying an unchanged constraint when returning to the
+        // scanner view; WebKit can recapture the rear camera unnecessarily.
+        if (Math.abs(requestedZoom - state.currentZoom) < 0.01) {
+          updateZoomControls();
+          return;
+        }
+
+        // Apply zoom only through the camera track so the decoder sees the same
+        // enlarged image as the user. Unsupported cameras stay at native 1x.
         if (state.hardwareZoomSupported && state.html5QrCode) {
           try {
-            const clamped = Math.min(Math.max(state.currentZoom, state.zoomCapabilities.min || 1), state.zoomCapabilities.max || 5);
+            const clamped = Math.min(Math.max(requestedZoom, state.zoomCapabilities.min || 1), state.zoomCapabilities.max || 1);
             await state.html5QrCode.applyVideoConstraints({
               advanced: [{ zoom: clamped }]
             });
-            // Reset software scale
-            const videoEl = document.querySelector('#reader video');
-            if (videoEl) videoEl.style.transform = 'scale(1)';
+            state.currentZoom = clamped;
+            updateZoomControls();
             return;
           } catch (e) {
-            console.warn('Hardware zoom apply error, falling back to software zoom:', e);
+            console.warn('Hardware zoom apply error:', e);
           }
         }
 
-        // Software Digital Zoom Fallback (CSS scaling of video element)
+        state.currentZoom = 1.0;
         const videoEl = document.querySelector('#reader video');
-        if (videoEl) {
-          videoEl.style.transform = `scale(${state.currentZoom})`;
-          videoEl.style.transformOrigin = 'center center';
-        }
-      }
-
-      // Cycle between 1x and 2x zoom on double-tap or button toggle
-      function toggleQuickZoom() {
-        const nextZoom = state.currentZoom >= 2.0 ? 1.0 : 2.0;
-        applyZoom(nextZoom);
+        if (videoEl) videoEl.style.transform = 'none';
+        updateZoomControls();
       }
 
       async function enumerateAllCameras() {
@@ -1294,16 +1292,36 @@
           if (window.Html5Qrcode && typeof Html5Qrcode.getCameras === 'function') {
             const cameras = await Html5Qrcode.getCameras();
             if (cameras && cameras.length > 0) {
-              state.availableCameras = cameras;
-              
-              // If multiple back/macro cameras exist, show lens switcher
-              const backCameras = cameras.filter(c => {
+              const labelledBackCameras = cameras.filter(c => {
                 const label = (c.label || '').toLowerCase();
-                return label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('wide') || label.includes('0');
+                return !label.includes('front') && !label.includes('user') && (
+                  label.includes('back') ||
+                  label.includes('rear') ||
+                  label.includes('environment') ||
+                  label.includes('wide') ||
+                  label.includes('telephoto') ||
+                  label.includes('macro')
+                );
               });
 
-              if (backCameras.length > 1) {
+              // The currently running environment camera is known to be rear-facing,
+              // even when iOS supplies an opaque or localised device label.
+              let activeCamera = null;
+              try {
+                const settings = state.html5QrCode.getRunningTrackSettings();
+                activeCamera = cameras.find(c => c.id === settings.deviceId) || null;
+              } catch (e) {
+                // Track settings are optional on older browsers.
+              }
+
+              state.availableCameras = [activeCamera, ...labelledBackCameras]
+                .filter((camera, index, list) => camera && list.findIndex(item => item && item.id === camera.id) === index);
+              state.currentCameraIndex = Math.max(0, state.availableCameras.findIndex(c => activeCamera && c.id === activeCamera.id));
+
+              if (state.availableCameras.length > 1) {
                 dom.lensCycleBtn.classList.remove('hidden');
+              } else {
+                dom.lensCycleBtn.classList.add('hidden');
               }
             }
           }
@@ -1343,6 +1361,11 @@
         }
         state.isScannerActive = false;
         state.isPaused = false;
+        state.hardwareZoomSupported = false;
+        state.currentZoom = 1.0;
+        state.torchActive = false;
+        dom.torchBtn.classList.add('hidden');
+        updateZoomControls();
       }
 
       async function cleanupAndRestartScanner(deviceId = null) {
@@ -1403,8 +1426,9 @@
           }
         });
 
-        // 1st Argument: Camera Identifier (string deviceId OR { facingMode: "environment" | "user" })
-        const cameraIdentifier = deviceId ? deviceId : { facingMode: state.currentFacingMode };
+        // Prefer the rear camera exclusively. Exact mode prevents Safari from
+        // silently choosing the selfie camera when a rear camera is present.
+        const cameraIdentifier = deviceId ? deviceId : { facingMode: { exact: 'environment' } };
 
         // 2nd Argument: Scanner Config without rigid aspectRatio to prevent iOS 17 black screen freeze
         const scanConfig = {
@@ -1414,10 +1438,7 @@
             const boxHeight = Math.floor(Math.min(viewfinderHeight * 0.45, 180));
             return { width: Math.max(boxWidth, 240), height: Math.max(boxHeight, 110) };
           },
-          disableFlip: false,
-          videoConstraints: {
-            facingMode: state.currentFacingMode
-          }
+          disableFlip: true
         };
 
         try {
@@ -1435,9 +1456,9 @@
           hideCameraError();
           
           // Force video element to play and render visibly
-          ensureVideoPlayback();
+          await ensureVideoPlayback();
 
-          // Query camera capabilities and apply smart default zoom
+          // Detect optional controls without changing the native camera state.
           await checkCameraCapabilities();
           await enumerateAllCameras();
         } catch (err) {
@@ -1459,11 +1480,12 @@
                 const boxHeight = Math.floor(Math.min(viewfinderHeight * 0.5, 160));
                 return { width: Math.max(boxWidth, 240), height: Math.max(boxHeight, 100) };
               },
-              disableFlip: false
+              disableFlip: true
             };
 
+            const fallbackCameraIdentifier = deviceId ? deviceId : { facingMode: 'environment' };
             await state.html5QrCode.start(
-              cameraIdentifier,
+              fallbackCameraIdentifier,
               basicScanConfig,
               onScanSuccess,
               onScanFailure
@@ -1473,7 +1495,7 @@
             state.isPaused = false;
             hideCameraError();
 
-            ensureVideoPlayback();
+            await ensureVideoPlayback();
             await checkCameraCapabilities();
             await enumerateAllCameras();
           } catch (fallbackErr) {
@@ -1483,7 +1505,7 @@
         }
       }
 
-      function ensureVideoPlayback() {
+      async function ensureVideoPlayback() {
         const video = document.querySelector('#reader video');
         if (video) {
           video.setAttribute('playsinline', 'true');
@@ -1495,9 +1517,7 @@
           video.style.opacity = '1';
           video.style.visibility = 'visible';
           
-          if (video.paused) {
-            video.play().catch(e => console.warn('Forced play attempt:', e));
-          }
+          if (video.paused) await video.play();
         }
 
         const shadedRegion = document.getElementById('qr-shaded-region');
@@ -1545,11 +1565,6 @@
         } else {
           cleanupAndRestartScanner();
         }
-      }
-
-      async function switchCameraFacing() {
-        state.currentFacingMode = state.currentFacingMode === 'environment' ? 'user' : 'environment';
-        await cleanupAndRestartScanner();
       }
 
       async function toggleTorch() {
@@ -2103,7 +2118,6 @@
         dom.errorScanAgainBtn.addEventListener('click', () => showView('scanner'));
 
         // Camera Controls & Direct Permission Requester
-        dom.switchCameraBtn.addEventListener('click', switchCameraFacing);
         dom.torchBtn.addEventListener('click', toggleTorch);
         dom.lensCycleBtn.addEventListener('click', cycleCameraLens);
         dom.restartCameraBtn.addEventListener('click', () => cleanupAndRestartScanner());
@@ -2118,18 +2132,6 @@
             const z = btn.getAttribute('data-zoom');
             applyZoom(z);
           });
-        });
-
-        // Double-tap on viewfinder to toggle 1x / 2x zoom
-        let lastTapTime = 0;
-        dom.viewfinderWrapper.addEventListener('touchend', (e) => {
-          const currentTime = new Date().getTime();
-          const tapLength = currentTime - lastTapTime;
-          if (tapLength < 350 && tapLength > 0) {
-            e.preventDefault();
-            toggleQuickZoom();
-          }
-          lastTapTime = currentTime;
         });
 
         // Manual Barcode Form
