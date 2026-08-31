@@ -84,6 +84,7 @@
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
+      z-index: 0 !important;
     }
 
     #reader__scan_region {
@@ -106,6 +107,10 @@
       border-radius: 1rem !important;
       z-index: 1 !important;
       transition: transform 0.2s ease-out;
+    }
+
+    #cameraOverlay {
+      z-index: 5;
     }
 
     /* Hide html5-qrcode default black shaded overlay */
@@ -1221,12 +1226,7 @@
         // lens selection and zoom at the browser's native defaults.
         const cameraIdentifier = { facingMode: 'environment' };
         const scanConfig = {
-          fps: 10,
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const boxWidth = Math.floor(viewfinderWidth * 0.88);
-            const boxHeight = Math.floor(Math.min(viewfinderHeight * 0.45, 180));
-            return { width: Math.max(boxWidth, 240), height: Math.max(boxHeight, 110) };
-          },
+          fps: 12,
           disableFlip: true
         };
 
