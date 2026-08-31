@@ -7,6 +7,13 @@ A lightweight, self-contained, mobile-first web application for scanning food an
 ## 📱 Features
 
 - **📷 Fast Barcode Scanner:** Real-time barcode scanning using device camera (`html5-qrcode`) with autofocus and rear-camera priority (`facingMode: "environment"`).
+- **🔬 iPhone 15 & Modern Flagship Focus Solution:**
+  - Solves the physical minimum-focus-distance limitation of modern large 48MP camera sensors (iPhone 13/14/15/15 Pro, Samsung S23/S24, Google Pixel).
+  - High-resolution 1080p/4K video stream constraints.
+  - **1x / 2x / 3x Zoom Controls:** Built-in hardware optical/sensor zoom support with smart default 2x zoom on launch.
+  - Double-tap viewfinder to quickly toggle between 1x and 2x zoom.
+  - Multi-camera lens cycle button for switching to Macro / Ultra-Wide lenses on supported devices.
+  - 1D barcode aspect-ratio frame and contextual distance guidance.
 - **🍎 iOS & Android Optimized:** Handles iOS Safari permissions, prevents fullscreen video takeover with `playsinline` and `webkit-playsinline`, and includes flashlight/torch controls (on supported devices).
 - **🚦 UK FSA Front-of-Pack Traffic Lights:** Official UK Food Standards Agency color-coded thresholds (Low/Green, Medium/Amber, High/Red) and % Reference Intake (% RI) for Fat, Saturated Fat, Sugars, and Salt.
 - **🌾 14 Mandatory UK Allergens Detection:** Automatically flags and highlights the 14 UK Food Standards Agency mandatory allergens:

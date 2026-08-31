@@ -43,7 +43,7 @@
           keyframes: {
             scan: {
               '0%, 100%': { transform: 'translateY(0%)' },
-              '50%': { transform: 'translateY(230px)' },
+              '50%': { transform: 'translateY(130px)' },
             },
             pulseGlow: {
               '0%, 100%': { opacity: '0.6' },
@@ -79,12 +79,15 @@
       border-radius: 1rem !important;
       playsinline: true !important;
       -webkit-playsinline: true !important;
+      transition: transform 0.2s ease-out;
     }
 
     #reader {
       border: none !important;
       background: transparent !important;
       position: relative;
+      overflow: hidden;
+      border-radius: 1rem;
     }
 
     #reader__scan_region {
@@ -120,9 +123,9 @@
     }
 
     .glass-pill {
-      background: rgba(30, 41, 59, 0.8);
+      background: rgba(30, 41, 59, 0.85);
       backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.12);
     }
 
     /* Nutriscore color badges */
@@ -212,16 +215,16 @@
     <section id="scannerSection" class="space-y-4 transition-all duration-300">
 
       <!-- Viewfinder Container -->
-      <div class="relative w-full aspect-[4/3] sm:aspect-square bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
+      <div id="viewfinderWrapper" class="relative w-full aspect-[4/3] sm:aspect-square bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl select-none">
         
         <!-- html5-qrcode target -->
         <div id="reader" class="w-full h-full"></div>
 
-        <!-- Custom Camera Overlay / Reticle -->
-        <div id="cameraOverlay" class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-6">
+        <!-- Custom Camera Overlay / Reticle (Optimized wide rectangle for 1D barcodes) -->
+        <div id="cameraOverlay" class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-4">
           
-          <!-- Targeting Box -->
-          <div class="relative w-64 h-56 rounded-xl border border-emerald-500/40">
+          <!-- Targeting Box (Wide 1D barcode aspect ratio) -->
+          <div class="relative w-[86%] max-w-[290px] h-36 rounded-xl border border-emerald-500/40 bg-emerald-500/5 shadow-[0_0_25px_rgba(16,185,129,0.15)]">
             <!-- Corners -->
             <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-emerald-400 rounded-tl-lg"></div>
             <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-emerald-400 rounded-tr-lg"></div>
@@ -229,25 +232,55 @@
             <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-emerald-400 rounded-br-lg"></div>
             
             <!-- Animated Scanning Laser Line -->
-            <div id="scanLaser" class="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_#34d399] animate-scan-line"></div>
+            <div id="scanLaser" class="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_14px_#34d399] animate-scan-line"></div>
           </div>
 
-          <p id="overlayHint" class="mt-4 text-xs font-medium text-slate-300 bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-full border border-slate-700/60 shadow">
-            Align barcode within frame
+          <!-- Dynamic Distance & Focus Guidance Hint -->
+          <p id="overlayHint" class="mt-3 text-[11px] font-medium text-slate-200 bg-slate-950/85 backdrop-blur-md px-3.5 py-1 rounded-full border border-slate-700/80 shadow-md text-center max-w-[90%]">
+            Hold 15–20 cm (6–8 in) away for sharp focus
           </p>
         </div>
 
-        <!-- Camera Controls Float Bar (Torch & Switch & Pause) -->
-        <div id="cameraControlsBar" class="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-auto">
+        <!-- FLOATING ZOOM SELECTOR (Crucial for iPhone 14/15/15 Pro & modern Androids) -->
+        <div id="zoomPillContainer" class="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-auto z-10">
+          <div class="glass-pill px-1 py-1 rounded-full flex items-center space-x-1 shadow-lg border border-slate-700/70">
+            <button type="button" class="zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-300 hover:text-white transition" data-zoom="1">
+              1x
+            </button>
+            <button type="button" class="zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-slate-950 shadow-sm transition" data-zoom="2">
+              2x
+            </button>
+            <button type="button" class="zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-300 hover:text-white transition" data-zoom="3">
+              3x
+            </button>
+          </div>
+
+          <!-- Camera Lens Switcher (e.g. Ultra-Wide / Macro vs Main Wide) -->
+          <button id="lensCycleBtn" title="Switch Lens" class="hidden p-2 rounded-full glass-pill text-slate-200 hover:text-white shadow-lg text-xs font-semibold flex items-center space-x-1 px-2.5 transition active:scale-95">
+            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            <span id="lensLabelText" class="text-[10px]">Macro / Lens</span>
+          </button>
+        </div>
+
+        <!-- Camera Controls Float Bar (Torch & Switch Facing) -->
+        <div id="cameraControlsBar" class="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-auto z-10">
           <!-- Torch Button -->
-          <button id="torchBtn" class="hidden p-2.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white shadow-lg transition active:scale-95">
+          <button id="torchBtn" title="Toggle Flashlight" class="hidden p-2.5 rounded-full bg-slate-900/85 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white shadow-lg transition active:scale-95">
             <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
           </button>
 
-          <!-- Toggle Camera Facing -->
-          <button id="switchCameraBtn" class="p-2.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white shadow-lg transition active:scale-95 ml-auto">
+          <!-- Tap to Focus / Double tap hint badge -->
+          <span class="text-[10px] text-slate-400 bg-slate-950/70 backdrop-blur-md px-2 py-1 rounded-md border border-slate-800 pointer-events-none">
+            Double-tap for 2x
+          </span>
+
+          <!-- Toggle Camera Facing (Front/Back) -->
+          <button id="switchCameraBtn" title="Flip Camera" class="p-2.5 rounded-full bg-slate-900/85 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white shadow-lg transition active:scale-95">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
@@ -274,6 +307,18 @@
               Upload Image Instead
             </label>
           </div>
+        </div>
+      </div>
+
+      <!-- Modern Phone Focus Helper Tip Box -->
+      <div class="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/20 text-xs text-slate-300 flex items-start space-x-2.5">
+        <span class="text-base flex-shrink-0">🔍</span>
+        <div class="space-y-1">
+          <p class="font-semibold text-emerald-400 text-[11px]">iPhone 15 & Flagship Camera Tip</p>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            Modern phones have large camera sensors that cannot focus when held too close (&lt;15cm). 
+            Hold the phone <strong>15–20 cm (6–8 in) away</strong> and use the <strong>2x zoom</strong> button above for instant sharp focus!
+          </p>
         </div>
       </div>
 
@@ -800,7 +845,13 @@
         torchActive: false,
         soundEnabled: localStorage.getItem(APP_CONFIG.soundStorageKey) !== 'false',
         currentProduct: null,
-        recentScans: []
+        recentScans: [],
+        // Zoom & Lens Management for iPhone 15 & modern flagship cameras
+        currentZoom: 2.0, // Default to 2x on modern phones so barcodes are in sharp focus at natural 15-20cm distance
+        hardwareZoomSupported: false,
+        zoomCapabilities: { min: 1.0, max: 1.0, step: 0.1 },
+        availableCameras: [],
+        currentCameraIndex: 0
       };
 
       // --- DOM ELEMENT REFERENCES ---
@@ -811,13 +862,18 @@
         errorSection: document.getElementById('errorSection'),
         productSection: document.getElementById('productSection'),
         // Overlays & Cameras
+        viewfinderWrapper: document.getElementById('viewfinderWrapper'),
         cameraOverlay: document.getElementById('cameraOverlay'),
+        overlayHint: document.getElementById('overlayHint'),
         cameraErrorOverlay: document.getElementById('cameraErrorOverlay'),
         cameraErrorTitle: document.getElementById('cameraErrorTitle'),
         cameraErrorMessage: document.getElementById('cameraErrorMessage'),
         retryCameraBtn: document.getElementById('retryCameraBtn'),
         switchCameraBtn: document.getElementById('switchCameraBtn'),
         torchBtn: document.getElementById('torchBtn'),
+        lensCycleBtn: document.getElementById('lensCycleBtn'),
+        lensLabelText: document.getElementById('lensLabelText'),
+        zoomPillContainer: document.getElementById('zoomPillContainer'),
         restartCameraBtn: document.getElementById('restartCameraBtn'),
         imageUploadInput: document.getElementById('imageUploadInput'),
         // Manual Search
@@ -1094,45 +1150,221 @@
         }
       }
 
+      // --- ADVANCED CAMERA & FOCUS / ZOOM MANAGEMENT ---
+      // Solves iPhone 13/14/15 minimum focus distance limitation by:
+      // 1. Requesting high-resolution 1080p/4K video stream
+      // 2. Applying 2x optical/sensor zoom on launch
+      // 3. Providing 1x / 2x / 3x zoom controls + software digital zoom fallback
+      // 4. Utilizing 1D-barcode optimized region of interest
+
+      async function checkCameraCapabilities() {
+        try {
+          if (state.html5QrCode && typeof state.html5QrCode.getRunningTrackCapabilities === 'function') {
+            const capabilities = state.html5QrCode.getRunningTrackCapabilities();
+            
+            // 1. Check Torch
+            if (capabilities && capabilities.torch) {
+              dom.torchBtn.classList.remove('hidden');
+            } else {
+              dom.torchBtn.classList.add('hidden');
+            }
+
+            // 2. Check Hardware Zoom
+            if (capabilities && capabilities.zoom) {
+              state.hardwareZoomSupported = true;
+              state.zoomCapabilities = capabilities.zoom;
+              console.log('Hardware Zoom Supported:', capabilities.zoom);
+              
+              // Apply default 2x zoom on back camera if supported
+              const initialZoom = Math.min(Math.max(2.0, capabilities.zoom.min), capabilities.zoom.max);
+              await applyZoom(initialZoom);
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('Capability check error:', e);
+        }
+
+        // Fallback: If hardware zoom is not exposed by Safari WebKit, use CSS/Digital zoom
+        state.hardwareZoomSupported = false;
+        applyZoom(state.currentZoom);
+      }
+
+      async function applyZoom(zoomFactor) {
+        state.currentZoom = parseFloat(zoomFactor);
+
+        // Update Zoom Pill UI Buttons
+        document.querySelectorAll('.zoom-btn').forEach(btn => {
+          const z = parseFloat(btn.getAttribute('data-zoom'));
+          if (Math.abs(z - state.currentZoom) < 0.2) {
+            btn.className = 'zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-slate-950 shadow-sm transition';
+          } else {
+            btn.className = 'zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-300 hover:text-white transition';
+          }
+        });
+
+        // Try applying native hardware track constraint
+        if (state.hardwareZoomSupported && state.html5QrCode) {
+          try {
+            const clamped = Math.min(Math.max(state.currentZoom, state.zoomCapabilities.min || 1), state.zoomCapabilities.max || 5);
+            await state.html5QrCode.applyVideoConstraints({
+              advanced: [{ zoom: clamped }]
+            });
+            // Reset software scale
+            const videoEl = document.querySelector('#reader video');
+            if (videoEl) videoEl.style.transform = 'scale(1)';
+            return;
+          } catch (e) {
+            console.warn('Hardware zoom apply error, falling back to software zoom:', e);
+          }
+        }
+
+        // Software Digital Zoom Fallback (CSS scaling of video element)
+        const videoEl = document.querySelector('#reader video');
+        if (videoEl) {
+          videoEl.style.transform = `scale(${state.currentZoom})`;
+          videoEl.style.transformOrigin = 'center center';
+        }
+      }
+
+      // Cycle between 1x and 2x zoom on double-tap or button toggle
+      function toggleQuickZoom() {
+        const nextZoom = state.currentZoom >= 2.0 ? 1.0 : 2.0;
+        applyZoom(nextZoom);
+      }
+
+      async function enumerateAllCameras() {
+        try {
+          if (window.Html5Qrcode && typeof Html5Qrcode.getCameras === 'function') {
+            const cameras = await Html5Qrcode.getCameras();
+            if (cameras && cameras.length > 0) {
+              state.availableCameras = cameras;
+              console.log('Available camera devices:', cameras);
+              
+              // If multiple back/macro cameras exist, show lens switcher
+              const backCameras = cameras.filter(c => {
+                const label = (c.label || '').toLowerCase();
+                return label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('wide') || label.includes('0');
+              });
+
+              if (backCameras.length > 1) {
+                dom.lensCycleBtn.classList.remove('hidden');
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Could not enumerate cameras:', e);
+        }
+      }
+
+      async function cycleCameraLens() {
+        if (!state.availableCameras || state.availableCameras.length <= 1) return;
+        state.currentCameraIndex = (state.currentCameraIndex + 1) % state.availableCameras.length;
+        const selectedCam = state.availableCameras[state.currentCameraIndex];
+        
+        if (dom.lensLabelText) {
+          dom.lensLabelText.textContent = selectedCam.label ? selectedCam.label.split('(')[0].slice(0, 12) : `Lens ${state.currentCameraIndex + 1}`;
+        }
+
+        try {
+          if (state.isScannerActive && state.html5QrCode) {
+            await state.html5QrCode.stop();
+            state.isScannerActive = false;
+          }
+          await initCameraScanner(selectedCam.id);
+        } catch (e) {
+          console.warn('Lens cycle error:', e);
+        }
+      }
+
       // --- BARCODE SCANNER LOGIC (html5-qrcode) ---
-      async function initCameraScanner() {
+      async function initCameraScanner(deviceId = null) {
         if (!window.Html5Qrcode) {
           showCameraError('Barcode scanner library not loaded. Please check your internet connection.');
           return;
         }
 
+        // Supported barcode formats focused on 1D retail and QR codes
+        const supportedFormats = [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.QR_CODE
+        ];
+
         if (!state.html5QrCode) {
-          state.html5QrCode = new Html5Qrcode("reader");
+          state.html5QrCode = new Html5Qrcode("reader", {
+            formatsToSupport: supportedFormats,
+            verbose: false,
+            experimentalFeatures: {
+              useBarCodeDetectorIfSupported: true
+            }
+          });
         }
 
+        // High-resolution video constraints (1080p/4K ideal)
+        // High resolution allows barcodes held 15-20cm away on iPhone 15 to have sufficient pixel density for decoding
+        const videoConstraints = {
+          facingMode: deviceId ? undefined : { ideal: state.currentFacingMode },
+          deviceId: deviceId ? { exact: deviceId } : undefined,
+          width: { min: 1280, ideal: 1920, max: 3840 },
+          height: { min: 720, ideal: 1080, max: 2160 },
+          advanced: [
+            { focusMode: "continuous" }
+          ]
+        };
+
         const config = {
-          fps: 15,
+          fps: 20,
           qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const minDim = Math.min(viewfinderWidth, viewfinderHeight);
-            const edge = Math.floor(minDim * 0.75);
-            return { width: edge, height: Math.floor(edge * 0.65) };
+            // Wide 1D rectangular search box for food barcodes
+            const boxWidth = Math.floor(viewfinderWidth * 0.88);
+            const boxHeight = Math.floor(Math.min(viewfinderHeight * 0.45, 180));
+            return { width: Math.max(boxWidth, 240), height: Math.max(boxHeight, 110) };
           },
           aspectRatio: 1.0,
-          disableFlip: false,
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true
-          }
+          disableFlip: false
         };
 
         try {
           hideCameraError();
+          
+          const cameraSource = deviceId ? { deviceId: { exact: deviceId } } : videoConstraints;
+
           await state.html5QrCode.start(
-            { facingMode: state.currentFacingMode },
+            cameraSource,
             config,
             onScanSuccess,
             onScanFailure
           );
+          
           state.isScannerActive = true;
           state.isPaused = false;
-          checkTorchCapability();
+          
+          // Query camera capabilities and apply smart default zoom
+          await checkCameraCapabilities();
+          await enumerateAllCameras();
         } catch (err) {
-          console.warn('Camera start failure:', err);
-          showCameraError(formatCameraErrorMessage(err));
+          console.warn('Camera start failure with advanced constraints, trying basic fallback:', err);
+          
+          // Fallback with standard facingMode
+          try {
+            await state.html5QrCode.start(
+              { facingMode: state.currentFacingMode },
+              config,
+              onScanSuccess,
+              onScanFailure
+            );
+            state.isScannerActive = true;
+            state.isPaused = false;
+            await checkCameraCapabilities();
+          } catch (fallbackErr) {
+            console.error('Fatal camera error:', fallbackErr);
+            showCameraError(formatCameraErrorMessage(fallbackErr));
+          }
         }
       }
 
@@ -1168,8 +1400,8 @@
         if (state.html5QrCode && state.isScannerActive) {
           try {
             await state.html5QrCode.resume();
+            await applyZoom(state.currentZoom);
           } catch (e) {
-            // If resume failed, re-initialize
             initCameraScanner();
           }
         } else {
@@ -1188,22 +1420,6 @@
           await initCameraScanner();
         } catch (e) {
           console.warn('Camera switch error:', e);
-        }
-      }
-
-      async function checkTorchCapability() {
-        try {
-          // Check if torch/flashlight is supported
-          if (state.html5QrCode && typeof state.html5QrCode.getRunningTrackCapabilities === 'function') {
-            const capabilities = state.html5QrCode.getRunningTrackCapabilities();
-            if (capabilities && capabilities.torch) {
-              dom.torchBtn.classList.remove('hidden');
-              return;
-            }
-          }
-          dom.torchBtn.classList.add('hidden');
-        } catch (e) {
-          dom.torchBtn.classList.add('hidden');
         }
       }
 
@@ -1700,12 +1916,34 @@
         dom.bottomScanAgainBtn.addEventListener('click', () => showView('scanner'));
         dom.errorScanAgainBtn.addEventListener('click', () => showView('scanner'));
 
-        // Camera Controls
+        // Camera Controls & Zoom
         dom.switchCameraBtn.addEventListener('click', switchCameraFacing);
         dom.torchBtn.addEventListener('click', toggleTorch);
-        dom.restartCameraBtn.addEventListener('click', initCameraScanner);
-        dom.retryCameraBtn.addEventListener('click', initCameraScanner);
+        dom.lensCycleBtn.addEventListener('click', cycleCameraLens);
+        dom.restartCameraBtn.addEventListener('click', () => initCameraScanner());
+        dom.retryCameraBtn.addEventListener('click', () => initCameraScanner());
         dom.imageUploadInput.addEventListener('change', handleImageUpload);
+
+        // Zoom buttons
+        document.querySelectorAll('.zoom-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const z = btn.getAttribute('data-zoom');
+            applyZoom(z);
+          });
+        });
+
+        // Double-tap on viewfinder to toggle 1x / 2x zoom
+        let lastTapTime = 0;
+        dom.viewfinderWrapper.addEventListener('touchend', (e) => {
+          const currentTime = new Date().getTime();
+          const tapLength = currentTime - lastTapTime;
+          if (tapLength < 350 && tapLength > 0) {
+            e.preventDefault();
+            toggleQuickZoom();
+          }
+          lastTapTime = currentTime;
+        });
 
         // Manual Barcode Form
         dom.manualBarcodeForm.addEventListener('submit', (e) => {
