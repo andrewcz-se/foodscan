@@ -274,7 +274,7 @@
             </svg>
           </button>
 
-          <!-- Tap to Focus / Double tap hint badge -->
+          <!-- Double tap hint badge -->
           <span class="text-[10px] text-slate-400 bg-slate-950/70 backdrop-blur-md px-2 py-1 rounded-md border border-slate-800 pointer-events-none">
             Double-tap for 2x
           </span>
@@ -287,24 +287,52 @@
           </button>
         </div>
 
-        <!-- Camera Status / Error Overlay Placeholder -->
-        <div id="cameraErrorOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md p-6 flex flex-col items-center justify-center text-center space-y-3 z-20">
-          <div class="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mb-1">
+        <!-- CAMERA PERMISSION & TROUBLESHOOTING MODAL / OVERLAY -->
+        <div id="cameraErrorOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md p-4 sm:p-6 flex flex-col items-center justify-center text-center z-30 overflow-y-auto">
+          <div class="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-2 flex-shrink-0">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
               <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="2"/>
             </svg>
           </div>
-          <h3 id="cameraErrorTitle" class="text-sm font-semibold text-white">Camera Access Required</h3>
-          <p id="cameraErrorMessage" class="text-xs text-slate-400 max-w-xs leading-relaxed">
-            Please allow camera permissions in your browser settings to scan physical barcodes.
+          
+          <h3 id="cameraErrorTitle" class="text-sm font-bold text-white mb-1">Camera Permission Blocked</h3>
+          <p id="cameraErrorMessage" class="text-xs text-slate-300 max-w-xs leading-relaxed mb-3">
+            Your browser is currently preventing camera access.
           </p>
-          <div class="flex flex-col gap-2 w-full max-w-xs pt-2">
-            <button id="retryCameraBtn" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-lg shadow-emerald-600/30 transition">
-              Retry Camera Permission
+
+          <!-- Step-by-Step Instructions Card -->
+          <div id="browserStepsCard" class="w-full max-w-xs p-3 rounded-xl bg-slate-900 border border-slate-700/80 text-left text-[11px] text-slate-300 space-y-2 mb-3 shadow-inner">
+            <p class="font-bold text-emerald-400 flex items-center space-x-1">
+              <span id="browserStepHeader">📱 How to enable camera in Safari:</span>
+            </p>
+            <ol id="browserStepsList" class="list-decimal list-inside space-y-1 text-slate-300 leading-snug">
+              <li>Tap the <strong class="text-white bg-slate-800 px-1 rounded">aA</strong> icon in the address bar.</li>
+              <li>Tap <strong class="text-white">Website Settings</strong>.</li>
+              <li>Set <strong class="text-white">Camera</strong> to <strong class="text-emerald-400">Allow</strong>.</li>
+              <li>Tap <strong>"Reload Page"</strong> below.</li>
+            </ol>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex flex-col gap-2 w-full max-w-xs">
+            <button id="retryCameraBtn" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition flex items-center justify-center space-x-2 active:scale-95">
+              <svg id="retrySpinner" class="hidden w-3.5 h-3.5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <span id="retryBtnText">Grant / Retry Camera</span>
             </button>
-            <label for="imageUploadInput" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs text-center cursor-pointer border border-slate-700 transition">
-              Upload Image Instead
+
+            <button id="reloadPageBtn" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 font-semibold text-xs border border-emerald-500/30 transition flex items-center justify-center space-x-1.5 active:scale-95">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              <span>Reload Page</span>
+            </button>
+
+            <label for="imageUploadInput" class="w-full py-2 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-medium text-[11px] text-center cursor-pointer border border-slate-700/60 transition">
+              📷 Take Photo with System Camera
             </label>
           </div>
         </div>
@@ -330,7 +358,7 @@
           </svg>
           <span>Scan Photo from Gallery</span>
         </label>
-        <input type="file" id="imageUploadInput" accept="image/*" class="hidden" />
+        <input type="file" id="imageUploadInput" accept="image/*" capture="environment" class="hidden" />
 
         <button id="restartCameraBtn" class="py-2 px-3 rounded-xl glass-pill text-xs font-medium text-slate-300 hover:text-white flex items-center justify-center space-x-1.5 transition">
           <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -341,7 +369,7 @@
       </div>
 
       <!-- Manual Barcode Search Card -->
-      <div class="glass-card rounded-2xl p-4 space-y-3">
+      <div id="manualSearchCard" class="glass-card rounded-2xl p-4 space-y-3">
         <div class="flex items-center justify-between">
           <label for="manualBarcodeInput" class="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
             <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -851,7 +879,8 @@
         hardwareZoomSupported: false,
         zoomCapabilities: { min: 1.0, max: 1.0, step: 0.1 },
         availableCameras: [],
-        currentCameraIndex: 0
+        currentCameraIndex: 0,
+        isCheckingPermission: false
       };
 
       // --- DOM ELEMENT REFERENCES ---
@@ -868,7 +897,13 @@
         cameraErrorOverlay: document.getElementById('cameraErrorOverlay'),
         cameraErrorTitle: document.getElementById('cameraErrorTitle'),
         cameraErrorMessage: document.getElementById('cameraErrorMessage'),
+        browserStepsCard: document.getElementById('browserStepsCard'),
+        browserStepHeader: document.getElementById('browserStepHeader'),
+        browserStepsList: document.getElementById('browserStepsList'),
         retryCameraBtn: document.getElementById('retryCameraBtn'),
+        retrySpinner: document.getElementById('retrySpinner'),
+        retryBtnText: document.getElementById('retryBtnText'),
+        reloadPageBtn: document.getElementById('reloadPageBtn'),
         switchCameraBtn: document.getElementById('switchCameraBtn'),
         torchBtn: document.getElementById('torchBtn'),
         lensCycleBtn: document.getElementById('lensCycleBtn'),
@@ -880,6 +915,7 @@
         manualBarcodeForm: document.getElementById('manualBarcodeForm'),
         manualBarcodeInput: document.getElementById('manualBarcodeInput'),
         clearManualInputBtn: document.getElementById('clearManualInputBtn'),
+        manualSearchCard: document.getElementById('manualSearchCard'),
         // Feedback & Modals
         soundToggleBtn: document.getElementById('soundToggleBtn'),
         soundIconOn: document.getElementById('soundIconOn'),
@@ -1151,12 +1187,6 @@
       }
 
       // --- ADVANCED CAMERA & FOCUS / ZOOM MANAGEMENT ---
-      // Solves iPhone 13/14/15 minimum focus distance limitation by:
-      // 1. Requesting high-resolution 1080p/4K video stream
-      // 2. Applying 2x optical/sensor zoom on launch
-      // 3. Providing 1x / 2x / 3x zoom controls + software digital zoom fallback
-      // 4. Utilizing 1D-barcode optimized region of interest
-
       async function checkCameraCapabilities() {
         try {
           if (state.html5QrCode && typeof state.html5QrCode.getRunningTrackCapabilities === 'function') {
@@ -1239,7 +1269,6 @@
             const cameras = await Html5Qrcode.getCameras();
             if (cameras && cameras.length > 0) {
               state.availableCameras = cameras;
-              console.log('Available camera devices:', cameras);
               
               // If multiple back/macro cameras exist, show lens switcher
               const backCameras = cameras.filter(c => {
@@ -1266,23 +1295,87 @@
           dom.lensLabelText.textContent = selectedCam.label ? selectedCam.label.split('(')[0].slice(0, 12) : `Lens ${state.currentCameraIndex + 1}`;
         }
 
-        try {
-          if (state.isScannerActive && state.html5QrCode) {
-            await state.html5QrCode.stop();
-            state.isScannerActive = false;
+        await cleanupAndRestartScanner(selectedCam.id);
+      }
+
+      // Completely clean up any running scanner instance
+      async function resetScannerInstance() {
+        if (state.html5QrCode) {
+          try {
+            if (state.isScannerActive) {
+              await state.html5QrCode.stop();
+            }
+          } catch (e) {
+            console.warn('Error stopping scanner:', e);
           }
-          await initCameraScanner(selectedCam.id);
-        } catch (e) {
-          console.warn('Lens cycle error:', e);
+          try {
+            state.html5QrCode.clear();
+          } catch (e) {
+            // Ignore
+          }
+          state.html5QrCode = null;
+        }
+        state.isScannerActive = false;
+        state.isPaused = false;
+      }
+
+      async function cleanupAndRestartScanner(deviceId = null) {
+        await resetScannerInstance();
+        await initCameraScanner(deviceId);
+      }
+
+      // Direct User-Gesture Permission Requester
+      // Fixes the issue where browser denies access once and ignores background calls
+      async function requestCameraPermissionDirectly() {
+        if (state.isCheckingPermission) return;
+        state.isCheckingPermission = true;
+
+        // Show loading state on retry button
+        dom.retrySpinner.classList.remove('hidden');
+        dom.retryBtnText.textContent = 'Requesting camera...';
+        dom.retryCameraBtn.disabled = true;
+
+        try {
+          // Check for secure context
+          if (window.isSecureContext === false && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            throw new Error('InsecureContext: Camera access strictly requires an HTTPS connection.');
+          }
+
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('MediaDevicesUnavailable: Your browser does not support camera media stream APIs.');
+          }
+
+          // Direct getUserMedia call triggered from clean User Activation
+          const testStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: state.currentFacingMode } }
+          });
+
+          // If we got the stream, permissions are successfully granted!
+          // Stop the test stream tracks immediately
+          testStream.getTracks().forEach(track => track.stop());
+
+          hideCameraError();
+          await cleanupAndRestartScanner();
+        } catch (err) {
+          console.warn('Direct permission request failed:', err);
+          showCameraError(formatCameraErrorMessage(err));
+        } finally {
+          state.isCheckingPermission = false;
+          dom.retrySpinner.classList.add('hidden');
+          dom.retryBtnText.textContent = 'Grant / Retry Camera';
+          dom.retryCameraBtn.disabled = false;
         }
       }
 
-      // --- BARCODE SCANNER LOGIC (html5-qrcode) ---
+      // --- BARCODE SCANNER INITIALIZATION ---
       async function initCameraScanner(deviceId = null) {
         if (!window.Html5Qrcode) {
           showCameraError('Barcode scanner library not loaded. Please check your internet connection.');
           return;
         }
+
+        // Clean up previous instance if stuck
+        await resetScannerInstance();
 
         // Supported barcode formats focused on 1D retail and QR codes
         const supportedFormats = [
@@ -1295,18 +1388,15 @@
           Html5QrcodeSupportedFormats.QR_CODE
         ];
 
-        if (!state.html5QrCode) {
-          state.html5QrCode = new Html5Qrcode("reader", {
-            formatsToSupport: supportedFormats,
-            verbose: false,
-            experimentalFeatures: {
-              useBarCodeDetectorIfSupported: true
-            }
-          });
-        }
+        state.html5QrCode = new Html5Qrcode("reader", {
+          formatsToSupport: supportedFormats,
+          verbose: false,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+          }
+        });
 
         // High-resolution video constraints (1080p/4K ideal)
-        // High resolution allows barcodes held 15-20cm away on iPhone 15 to have sufficient pixel density for decoding
         const videoConstraints = {
           facingMode: deviceId ? undefined : { ideal: state.currentFacingMode },
           deviceId: deviceId ? { exact: deviceId } : undefined,
@@ -1348,7 +1438,7 @@
           await checkCameraCapabilities();
           await enumerateAllCameras();
         } catch (err) {
-          console.warn('Camera start failure with advanced constraints, trying basic fallback:', err);
+          console.warn('Camera start with advanced constraints failed, attempting standard fallback:', err);
           
           // Fallback with standard facingMode
           try {
@@ -1402,25 +1492,16 @@
             await state.html5QrCode.resume();
             await applyZoom(state.currentZoom);
           } catch (e) {
-            initCameraScanner();
+            cleanupAndRestartScanner();
           }
         } else {
-          initCameraScanner();
+          cleanupAndRestartScanner();
         }
       }
 
       async function switchCameraFacing() {
-        if (!state.html5QrCode) return;
         state.currentFacingMode = state.currentFacingMode === 'environment' ? 'user' : 'environment';
-        try {
-          if (state.isScannerActive) {
-            await state.html5QrCode.stop();
-            state.isScannerActive = false;
-          }
-          await initCameraScanner();
-        } catch (e) {
-          console.warn('Camera switch error:', e);
-        }
+        await cleanupAndRestartScanner();
       }
 
       async function toggleTorch() {
@@ -1437,18 +1518,75 @@
         }
       }
 
+      // Intelligent OS-Specific Camera Error Formatter
       function formatCameraErrorMessage(err) {
         const msg = String(err).toLowerCase();
-        if (msg.includes('notallowederror') || msg.includes('permission')) {
-          return 'Camera permission was denied. On iOS Safari, tap "AA" in the address bar > Website Settings > Camera > Allow, then refresh.';
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isAndroid = /Android/i.test(navigator.userAgent);
+
+        if (msg.includes('insecurecontext') || (window.isSecureContext === false && location.hostname !== 'localhost')) {
+          dom.cameraErrorTitle.textContent = 'HTTPS Security Required';
+          dom.browserStepHeader.textContent = '🔒 Secure Connection Required:';
+          dom.browserStepsList.innerHTML = `
+            <li>Camera permissions are blocked by browsers on non-secure HTTP.</li>
+            <li>Deploy to <strong class="text-white">GitHub Pages (HTTPS)</strong> or access via <strong class="text-white">https://</strong>.</li>
+            <li>Alternatively use the manual barcode search below.</li>
+          `;
+          return 'Modern mobile browsers strictly require an HTTPS connection to access your camera.';
         }
+
+        if (msg.includes('notallowederror') || msg.includes('permission') || msg.includes('denied')) {
+          dom.cameraErrorTitle.textContent = 'Camera Access Denied';
+          
+          if (isIOS) {
+            dom.browserStepHeader.textContent = '🍎 How to Unblock on iPhone / Safari:';
+            dom.browserStepsList.innerHTML = `
+              <li>Look at the top or bottom Safari address bar.</li>
+              <li>Tap the <strong class="text-white bg-slate-800 px-1 py-0.5 rounded">aA</strong> or <strong class="text-white">Page Settings 🔒</strong> icon.</li>
+              <li>Tap <strong class="text-white">Website Settings</strong> &gt; <strong class="text-white">Camera</strong>.</li>
+              <li>Select <strong class="text-emerald-400 font-bold">Allow</strong>.</li>
+              <li>Tap <strong class="text-emerald-400">"Reload Page"</strong> below!</li>
+            `;
+          } else if (isAndroid) {
+            dom.browserStepHeader.textContent = '🤖 How to Unblock on Android / Chrome:';
+            dom.browserStepsList.innerHTML = `
+              <li>Tap the <strong class="text-white">Tune / Lock 🔒</strong> icon left of the website URL.</li>
+              <li>Tap <strong class="text-white">Permissions</strong> &gt; <strong class="text-white">Camera</strong>.</li>
+              <li>Select <strong class="text-emerald-400 font-bold">Allow</strong>.</li>
+              <li>Tap <strong class="text-emerald-400">"Reload Page"</strong> below!</li>
+            `;
+          } else {
+            dom.browserStepHeader.textContent = '💻 How to Unblock Camera:';
+            dom.browserStepsList.innerHTML = `
+              <li>Click the camera or lock icon in your browser address bar.</li>
+              <li>Set camera permission to <strong class="text-emerald-400">Always Allow</strong>.</li>
+              <li>Tap <strong class="text-emerald-400">"Reload Page"</strong> below.</li>
+            `;
+          }
+          return 'Camera permission was previously denied or dismissed in your browser settings.';
+        }
+
         if (msg.includes('notfounderror') || msg.includes('devices not found')) {
-          return 'No working camera device was detected on your system. You can still search manually or upload a barcode photo.';
+          dom.cameraErrorTitle.textContent = 'No Camera Detected';
+          dom.browserStepHeader.textContent = '📷 Camera Hardware Check:';
+          dom.browserStepsList.innerHTML = `
+            <li>No working camera device was detected on your system.</li>
+            <li>You can take a photo with your system camera roll or use manual search.</li>
+          `;
+          return 'No camera device found. You can still scan by taking a photo or entering the barcode number.';
         }
+
         if (msg.includes('notreadableerror') || msg.includes('trackstart')) {
-          return 'Camera is already in use by another application. Please close other camera apps and retry.';
+          dom.cameraErrorTitle.textContent = 'Camera In Use';
+          dom.browserStepHeader.textContent = '⚠️ Close Other Apps:';
+          dom.browserStepsList.innerHTML = `
+            <li>Your camera is currently locked by another app (e.g. Camera app, FaceTime, Zoom).</li>
+            <li>Close other camera apps, then tap <strong class="text-emerald-400">"Reload Page"</strong>.</li>
+          `;
+          return 'Another application is currently using your camera. Please close other camera apps and retry.';
         }
-        return 'Could not access the camera. Please check your browser permissions or use the manual search below.';
+
+        return 'Could not start camera feed. Please check browser permissions or use manual search.';
       }
 
       function showCameraError(message) {
@@ -1916,12 +2054,13 @@
         dom.bottomScanAgainBtn.addEventListener('click', () => showView('scanner'));
         dom.errorScanAgainBtn.addEventListener('click', () => showView('scanner'));
 
-        // Camera Controls & Zoom
+        // Camera Controls & Direct Permission Requester
         dom.switchCameraBtn.addEventListener('click', switchCameraFacing);
         dom.torchBtn.addEventListener('click', toggleTorch);
         dom.lensCycleBtn.addEventListener('click', cycleCameraLens);
-        dom.restartCameraBtn.addEventListener('click', () => initCameraScanner());
-        dom.retryCameraBtn.addEventListener('click', () => initCameraScanner());
+        dom.restartCameraBtn.addEventListener('click', () => cleanupAndRestartScanner());
+        dom.retryCameraBtn.addEventListener('click', requestCameraPermissionDirectly);
+        dom.reloadPageBtn.addEventListener('click', () => window.location.reload());
         dom.imageUploadInput.addEventListener('change', handleImageUpload);
 
         // Zoom buttons
