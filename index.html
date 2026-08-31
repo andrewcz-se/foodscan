@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#090d16" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="UK Food & Drink Barcode Scanner - Instant nutritional traffic lights, allergens, Nutri-Score & NOVA rating powered by Open Food Facts" />
+  <title>FoodScan UK - Barcode & Nutrition Scanner</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+            },
+            traffic: {
+              green: '#15803d',
+              greenBg: '#dcfce7',
+              greenText: '#166534',
+              amber: '#b45309',
+              amberBg: '#fef3c7',
+              amberText: '#92400e',
+              red: '#b91c1c',
+              redBg: '#fee2e2',
+              redText: '#991b1b',
+            }
+          },
+          animation: {
+            'scan-line': 'scan 2s ease-in-out infinite',
+            'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            scan: {
+              '0%, 100%': { transform: 'translateY(0%)' },
+              '50%': { transform: 'translateY(230px)' },
+            },
+            pulseGlow: {
+              '0%, 100%': { opacity: '0.6' },
+              '50%': { opacity: '1' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- html5-qrcode library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    
+    /* Ensure iOS video does not go fullscreen */
+    #reader video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      border-radius: 1rem !important;
+      playsinline: true !important;
+      -webkit-playsinline: true !important;
+    }
+
+    #reader {
+      border: none !important;
+      background: transparent !important;
+      position: relative;
+    }
+
+    #reader__scan_region {
+      background: transparent !important;
+    }
+
+    #reader__dashboard {
+      display: none !important;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Glassmorphism */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .glass-pill {
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Nutriscore color badges */
+    .nutri-a { background-color: #038141; color: white; }
+    .nutri-b { background-color: #85bb2f; color: white; }
+    .nutri-c { background-color: #fecb02; color: #1e293b; }
+    .nutri-d { background-color: #ee8100; color: white; }
+    .nutri-e { background-color: #e63e11; color: white; }
+
+    /* Shimmer effect for skeleton */
+    @keyframes shimmer {
+      100% {
+        transform: translateX(100%);
+      }
+    }
+    .skeleton-box {
+      position: relative;
+      overflow: hidden;
+      background-color: #1e293b;
+    }
+    .skeleton-box::after {
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;
+      transform: translateX(-100%);
+      background-image: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0,
+        rgba(255, 255, 255, 0.05) 20%,
+        rgba(255, 255, 255, 0.1) 60%,
+        rgba(255, 255, 255, 0)
+      );
+      animation: shimmer 1.5s infinite;
+      content: '';
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-emerald-500 selection:text-white pb-20">
+
+  <!-- TOP APP BAR -->
+  <header class="sticky top-0 z-40 glass-card border-b border-slate-800/80 px-4 py-3">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 ring-1 ring-emerald-400/30">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-bold text-base tracking-tight leading-none bg-gradient-to-r from-white via-slate-100 to-emerald-300 bg-clip-text text-transparent">FoodScan UK</h1>
+          <p class="text-[11px] font-medium text-emerald-400/90 tracking-wide mt-0.5">UK Nutrition & Allergens</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <!-- Sound/Haptic Toggle -->
+        <button id="soundToggleBtn" title="Toggle Sound Feedback" class="w-8 h-8 rounded-lg glass-pill flex items-center justify-center text-slate-300 hover:text-white transition">
+          <svg id="soundIconOn" class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+          </svg>
+          <svg id="soundIconOff" class="w-4 h-4 text-slate-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+          </svg>
+        </button>
+
+        <!-- Recent History Button -->
+        <button id="historyModalBtn" title="Scan History" class="relative px-2.5 py-1.5 rounded-lg glass-pill text-xs font-semibold text-slate-200 hover:text-white flex items-center space-x-1.5 transition">
+          <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span>History</span>
+          <span id="historyCountBadge" class="hidden ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-emerald-500 text-slate-950 font-bold">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- OFFLINE WARNING BANNER -->
+  <div id="offlineBanner" class="hidden bg-amber-500/90 text-amber-950 text-xs font-semibold px-4 py-2 text-center shadow-md">
+    <span>⚠️ You are currently offline. Open Food Facts requests require an active connection.</span>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-grow max-w-md w-full mx-auto px-4 py-4 space-y-4">
+
+    <!-- VIEW 1: SCANNER INTERFACE -->
+    <section id="scannerSection" class="space-y-4 transition-all duration-300">
+
+      <!-- Viewfinder Container -->
+      <div class="relative w-full aspect-[4/3] sm:aspect-square bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
+        
+        <!-- html5-qrcode target -->
+        <div id="reader" class="w-full h-full"></div>
+
+        <!-- Custom Camera Overlay / Reticle -->
+        <div id="cameraOverlay" class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-6">
+          
+          <!-- Targeting Box -->
+          <div class="relative w-64 h-56 rounded-xl border border-emerald-500/40">
+            <!-- Corners -->
+            <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-emerald-400 rounded-tl-lg"></div>
+            <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-emerald-400 rounded-tr-lg"></div>
+            <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-emerald-400 rounded-bl-lg"></div>
+            <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-emerald-400 rounded-br-lg"></div>
+            
+            <!-- Animated Scanning Laser Line -->
+            <div id="scanLaser" class="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_#34d399] animate-scan-line"></div>
+          </div>
+
+          <p id="overlayHint" class="mt-4 text-xs font-medium text-slate-300 bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-full border border-slate-700/60 shadow">
+            Align barcode within frame
+          </p>
+        </div>
+
+        <!-- Camera Controls Float Bar (Torch & Switch & Pause) -->
+        <div id="cameraControlsBar" class="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-auto">
+          <!-- Torch Button -->
+          <button id="torchBtn" class="hidden p-2.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white shadow-lg transition active:scale-95">
+            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </button>
+
+          <!-- Toggle Camera Facing -->
+          <button id="switchCameraBtn" class="p-2.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white shadow-lg transition active:scale-95 ml-auto">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Camera Status / Error Overlay Placeholder -->
+        <div id="cameraErrorOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md p-6 flex flex-col items-center justify-center text-center space-y-3 z-20">
+          <div class="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mb-1">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+              <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <h3 id="cameraErrorTitle" class="text-sm font-semibold text-white">Camera Access Required</h3>
+          <p id="cameraErrorMessage" class="text-xs text-slate-400 max-w-xs leading-relaxed">
+            Please allow camera permissions in your browser settings to scan physical barcodes.
+          </p>
+          <div class="flex flex-col gap-2 w-full max-w-xs pt-2">
+            <button id="retryCameraBtn" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-lg shadow-emerald-600/30 transition">
+              Retry Camera Permission
+            </button>
+            <label for="imageUploadInput" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs text-center cursor-pointer border border-slate-700 transition">
+              Upload Image Instead
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Upload & Camera Restart Bar -->
+      <div class="flex items-center justify-between gap-2 px-1">
+        <label for="imageUploadInput" class="flex-1 py-2 px-3 rounded-xl glass-pill text-xs font-medium text-slate-300 hover:text-white flex items-center justify-center space-x-2 cursor-pointer transition">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <span>Scan Photo from Gallery</span>
+        </label>
+        <input type="file" id="imageUploadInput" accept="image/*" class="hidden" />
+
+        <button id="restartCameraBtn" class="py-2 px-3 rounded-xl glass-pill text-xs font-medium text-slate-300 hover:text-white flex items-center justify-center space-x-1.5 transition">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          <span>Restart Camera</span>
+        </button>
+      </div>
+
+      <!-- Manual Barcode Search Card -->
+      <div class="glass-card rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <label for="manualBarcodeInput" class="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
+            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            <span>Manual Barcode Search</span>
+          </label>
+          <span class="text-[10px] text-slate-500">EAN-13, EAN-8, UPC-A</span>
+        </div>
+
+        <form id="manualBarcodeForm" class="flex gap-2">
+          <div class="relative flex-grow">
+            <input 
+              type="text" 
+              inputmode="numeric" 
+              pattern="[0-9]*" 
+              id="manualBarcodeInput" 
+              placeholder="e.g. 5000157024671" 
+              class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+            />
+            <button type="button" id="clearManualInputBtn" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <button 
+            type="submit" 
+            class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-semibold text-xs text-white shadow-lg shadow-emerald-600/20 active:scale-95 transition flex items-center space-x-1.5"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <span>Search</span>
+          </button>
+        </form>
+
+        <!-- Quick Demo Product Chips for Easy Testing -->
+        <div class="pt-1">
+          <p class="text-[11px] font-medium text-slate-400 mb-1.5">Try sample UK products:</p>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" class="sample-barcode-btn text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition" data-barcode="5000157024671">
+              🥫 Heinz Beans
+            </button>
+            <button type="button" class="sample-barcode-btn text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition" data-barcode="5000184400030">
+              🍞 Marmite
+            </button>
+            <button type="button" class="sample-barcode-btn text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition" data-barcode="5000128003049">
+              🍫 KitKat 4 Finger
+            </button>
+            <button type="button" class="sample-barcode-btn text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition" data-barcode="5449000000996">
+              🥤 Coca-Cola
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- VIEW 2: LOADING SKELETON STATE -->
+    <section id="loadingSection" class="hidden space-y-4 py-6">
+      <div class="glass-card rounded-2xl p-6 space-y-4 text-center">
+        <div class="relative w-16 h-16 mx-auto">
+          <div class="w-16 h-16 rounded-full border-4 border-slate-800 border-t-emerald-500 animate-spin"></div>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+            </svg>
+          </div>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-white">Fetching Open Food Facts</h3>
+          <p id="loadingBarcodeText" class="text-xs text-slate-400 mt-1 font-mono">Barcode: 5000157024671</p>
+        </div>
+      </div>
+
+      <!-- Shimmer Placeholder Cards -->
+      <div class="glass-card rounded-2xl p-4 space-y-3">
+        <div class="flex space-x-3">
+          <div class="w-20 h-20 rounded-xl skeleton-box flex-shrink-0"></div>
+          <div class="flex-grow space-y-2 py-1">
+            <div class="h-4 rounded-md skeleton-box w-3/4"></div>
+            <div class="h-3 rounded-md skeleton-box w-1/2"></div>
+            <div class="h-3 rounded-md skeleton-box w-1/3"></div>
+          </div>
+        </div>
+        <div class="grid grid-cols-4 gap-2 pt-2">
+          <div class="h-16 rounded-xl skeleton-box"></div>
+          <div class="h-16 rounded-xl skeleton-box"></div>
+          <div class="h-16 rounded-xl skeleton-box"></div>
+          <div class="h-16 rounded-xl skeleton-box"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: ERROR / NOT FOUND STATE -->
+    <section id="errorSection" class="hidden space-y-4 py-4">
+      <div class="glass-card rounded-2xl p-6 text-center space-y-4 border border-rose-500/20">
+        <div class="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 mx-auto flex items-center justify-center">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </div>
+        <div class="space-y-1">
+          <h3 id="errorTitle" class="text-base font-bold text-white">Product Not Found</h3>
+          <p id="errorSubtitle" class="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+            This barcode does not exist in the Open Food Facts database yet or the connection timed out.
+          </p>
+          <p id="errorBarcodeDisplay" class="text-xs font-mono text-emerald-400 pt-1"></p>
+        </div>
+        <div class="pt-2 flex flex-col gap-2">
+          <button id="errorScanAgainBtn" class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-lg shadow-emerald-600/30 transition flex items-center justify-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+            </svg>
+            <span>Scan Another Item</span>
+          </button>
+          <a id="openFoodFactsContributeLink" href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" class="py-2.5 px-4 rounded-xl glass-pill text-slate-300 hover:text-white text-xs font-medium transition text-center">
+            Add to Open Food Facts ↗
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: PRODUCT DETAILS DISPLAY -->
+    <section id="productSection" class="hidden space-y-4 pb-12">
+      
+      <!-- Top Action Bar -->
+      <div class="flex items-center justify-between">
+        <button id="backToScanBtn" class="px-3 py-1.5 rounded-xl glass-pill text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center space-x-1.5 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          <span>Scan Another</span>
+        </button>
+
+        <button id="shareProductBtn" class="px-3 py-1.5 rounded-xl glass-pill text-xs font-medium text-slate-300 hover:text-white flex items-center space-x-1.5 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+          </svg>
+          <span>Share</span>
+        </button>
+      </div>
+
+      <!-- PRODUCT OVERVIEW CARD -->
+      <div class="glass-card rounded-2xl p-4 space-y-3">
+        <div class="flex gap-4 items-start">
+          <!-- Thumbnail -->
+          <div class="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl bg-slate-900 border border-slate-800 overflow-hidden flex-shrink-0 flex items-center justify-center p-1.5 shadow-inner">
+            <img id="productImage" src="" alt="Product" class="max-w-full max-h-full object-contain rounded-lg" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2364748b\' stroke-width=\'1.5\'%3E%3Crect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\'/%3E%3Ccircle cx=\'8.5\' cy=\'8.5\' r=\'1.5\'/%3E%3Cpath d=\'M21 15l-5-5L5 21\'/%3E%3C/svg%3E'" />
+          </div>
+
+          <!-- Titles & Metas -->
+          <div class="flex-grow min-w-0 space-y-1">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span id="productBrandBadge" class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 truncate max-w-[160px]">
+                Brand
+              </span>
+              <span id="productQuantityBadge" class="text-[11px] font-medium text-slate-400">
+                Quantity
+              </span>
+            </div>
+            
+            <h2 id="productTitle" class="text-base font-bold text-white tracking-tight leading-snug break-words">
+              Product Name
+            </h2>
+
+            <p id="productCategories" class="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+              Categories
+            </p>
+
+            <div class="pt-1 flex items-center space-x-2 text-[11px] text-slate-400 font-mono">
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+              </svg>
+              <span id="productBarcode">000000000000</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Badges Row: Nutri-Score & NOVA & Diet Badges -->
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80">
+          
+          <!-- Nutri-Score Badge Box -->
+          <div class="glass-pill rounded-xl p-2.5 flex items-center justify-between space-x-2">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Nutri-Score</span>
+              <span id="nutriScoreLabel" class="text-xs font-semibold text-white">Grade -</span>
+            </div>
+            <div id="nutriScoreBadge" class="w-10 h-10 rounded-lg flex items-center justify-center font-black text-xl shadow-md nutri-c">
+              -
+            </div>
+          </div>
+
+          <!-- NOVA Group Badge Box -->
+          <div class="glass-pill rounded-xl p-2.5 flex items-center justify-between space-x-2">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">NOVA Group</span>
+              <span id="novaGroupLabel" class="text-xs font-semibold text-white leading-tight">Group -</span>
+            </div>
+            <div id="novaGroupBadge" class="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-black text-lg text-amber-400 shadow-md">
+              -
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Nutri-Score Spectrum Bar -->
+        <div class="pt-1">
+          <div class="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1">
+            <span>Nutritional Quality</span>
+            <span id="nutriScoreSummaryText" class="text-emerald-400">Class A: Best</span>
+          </div>
+          <div class="grid grid-cols-5 gap-1 text-center font-bold text-xs">
+            <div id="ns-a" class="py-1 rounded nutri-a opacity-30 transition-all">A</div>
+            <div id="ns-b" class="py-1 rounded nutri-b opacity-30 transition-all">B</div>
+            <div id="ns-c" class="py-1 rounded nutri-c opacity-30 transition-all">C</div>
+            <div id="ns-d" class="py-1 rounded nutri-d opacity-30 transition-all">D</div>
+            <div id="ns-e" class="py-1 rounded nutri-e opacity-30 transition-all">E</div>
+          </div>
+        </div>
+
+        <!-- NOVA Explanation Banner -->
+        <div id="novaExplainBox" class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-300 flex items-start space-x-2">
+          <span id="novaIcon" class="text-base flex-shrink-0">🌱</span>
+          <p id="novaExplainText" class="leading-relaxed">
+            NOVA Rating details.
+          </p>
+        </div>
+      </div>
+
+      <!-- UK FRONT-OF-PACK TRAFFIC LIGHT NUTRITION CARD -->
+      <div class="glass-card rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-200">UK Front-of-Pack Traffic Lights</h3>
+          </div>
+          <span class="text-[10px] text-slate-400 font-medium">Per 100g / ml</span>
+        </div>
+
+        <p class="text-[11px] text-slate-400 leading-tight">
+          Based on official UK Food Standards Agency (FSA) nutritional guidelines for adults.
+        </p>
+
+        <!-- 4 Traffic Light Boxes (Fat, Saturates, Sugars, Salt) -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+          
+          <!-- FAT -->
+          <div id="tlFatCard" class="rounded-xl p-3 flex flex-col justify-between text-center transition-all bg-slate-900 border border-slate-800">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Fat</span>
+              <p id="tlFatVal" class="text-base font-extrabold text-white my-0.5">0.0g</p>
+            </div>
+            <div>
+              <span id="tlFatLevel" class="inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-800 text-slate-300">
+                LOW
+              </span>
+              <span id="tlFatRI" class="block text-[9px] text-slate-400 mt-1 font-medium">0% RI</span>
+            </div>
+          </div>
+
+          <!-- SATURATES -->
+          <div id="tlSatFatCard" class="rounded-xl p-3 flex flex-col justify-between text-center transition-all bg-slate-900 border border-slate-800">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Saturates</span>
+              <p id="tlSatFatVal" class="text-base font-extrabold text-white my-0.5">0.0g</p>
+            </div>
+            <div>
+              <span id="tlSatFatLevel" class="inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-800 text-slate-300">
+                LOW
+              </span>
+              <span id="tlSatFatRI" class="block text-[9px] text-slate-400 mt-1 font-medium">0% RI</span>
+            </div>
+          </div>
+
+          <!-- SUGARS -->
+          <div id="tlSugarsCard" class="rounded-xl p-3 flex flex-col justify-between text-center transition-all bg-slate-900 border border-slate-800">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Sugars</span>
+              <p id="tlSugarsVal" class="text-base font-extrabold text-white my-0.5">0.0g</p>
+            </div>
+            <div>
+              <span id="tlSugarsLevel" class="inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-800 text-slate-300">
+                LOW
+              </span>
+              <span id="tlSugarsRI" class="block text-[9px] text-slate-400 mt-1 font-medium">0% RI</span>
+            </div>
+          </div>
+
+          <!-- SALT -->
+          <div id="tlSaltCard" class="rounded-xl p-3 flex flex-col justify-between text-center transition-all bg-slate-900 border border-slate-800">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Salt</span>
+              <p id="tlSaltVal" class="text-base font-extrabold text-white my-0.5">0.0g</p>
+            </div>
+            <div>
+              <span id="tlSaltLevel" class="inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-800 text-slate-300">
+                LOW
+              </span>
+              <span id="tlSaltRI" class="block text-[9px] text-slate-400 mt-1 font-medium">0% RI</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Energy Highlights -->
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
+          <span class="font-medium text-slate-300">Energy (Calories)</span>
+          <div class="text-right">
+            <span id="tlEnergyKcal" class="font-bold text-emerald-400 text-sm">0 kcal</span>
+            <span id="tlEnergyKj" class="text-[11px] text-slate-400 ml-1.5">(0 kJ)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALLERGENS & DIETARY CARD (UK 14 MANDATORY ALLERGENS) -->
+      <div class="glass-card rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center space-x-1.5">
+            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span>Allergens & Dietary Advice</span>
+          </h3>
+          <span class="text-[10px] text-slate-500">14 UK Allergens</span>
+        </div>
+
+        <!-- Detected Allergens Alert Box -->
+        <div id="allergensAlertContainer" class="space-y-2">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Traces Warning Box -->
+        <div id="tracesAlertContainer" class="hidden p-2.5 rounded-xl bg-slate-900 border border-amber-500/20 text-xs text-slate-300">
+          <span class="font-bold text-amber-400 text-[11px] block mb-1">⚠️ May contain traces of:</span>
+          <p id="tracesListText" class="text-slate-300 text-[11px] leading-relaxed"></p>
+        </div>
+
+        <!-- Ingredients List Section -->
+        <div class="pt-2 border-t border-slate-800">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[11px] font-bold text-slate-300">Ingredients List</span>
+            <button id="toggleIngredientsBtn" class="text-[10px] text-emerald-400 hover:underline">Show / Hide</button>
+          </div>
+          <div id="ingredientsBox" class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300 leading-relaxed max-h-48 overflow-y-auto">
+            <p id="ingredientsText">No ingredients information available.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- DETAILED NUTRITIONAL BREAKDOWN TABLE -->
+      <div class="glass-card rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-200">Full Nutritional Table</h3>
+          <span id="servingSizeNotice" class="text-[10px] text-emerald-400 font-medium">Serving: 100g</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 text-[10px] uppercase font-bold">
+                <th class="py-2 pr-2">Typical Values</th>
+                <th class="py-2 px-2 text-right">Per 100g</th>
+                <th id="thServing" class="py-2 pl-2 text-right">Per Serving</th>
+              </tr>
+            </thead>
+            <tbody id="nutritionTableBody" class="divide-y divide-slate-800/60 font-medium">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- FOOTER LINKS & DATA SOURCE -->
+      <div class="text-center pt-2 pb-6 space-y-2">
+        <p class="text-[11px] text-slate-500">
+          Data provided by <a id="offProductUrl" href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" class="text-emerald-400 underline hover:text-emerald-300">Open Food Facts</a> open database.
+        </p>
+        <button id="bottomScanAgainBtn" class="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition flex items-center justify-center space-x-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+          </svg>
+          <span>Scan Another Product</span>
+        </button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- COLLAPSIBLE RECENT SCANS TRAY / MODAL -->
+  <div id="historyModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden transition-opacity duration-300 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="glass-card w-full max-w-md bg-slate-900 rounded-t-3xl sm:rounded-2xl border border-slate-700/80 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] transition-transform transform">
+      
+      <!-- Modal Header -->
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Recent Scans</h3>
+            <p class="text-[10px] text-slate-400">Stored locally on your device</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button id="clearHistoryBtn" class="text-[11px] text-rose-400 hover:text-rose-300 px-2 py-1 rounded hover:bg-rose-500/10 transition">
+            Clear All
+          </button>
+          <button id="closeHistoryModalBtn" class="w-7 h-7 rounded-lg glass-pill flex items-center justify-center text-slate-400 hover:text-white transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- History List -->
+      <div id="historyListContainer" class="p-4 overflow-y-auto space-y-2.5 flex-grow">
+        <!-- Dynamically rendered -->
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-3 bg-slate-950/60 border-t border-slate-800/80 text-center">
+        <button id="closeHistoryBottomBtn" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING BOTTOM BAR FOR QUICK SCAN ACCESS -->
+  <nav class="fixed bottom-0 left-0 right-0 z-30 glass-card border-t border-slate-800/90 py-2.5 px-6">
+    <div class="max-w-md mx-auto flex items-center justify-around">
+      <button id="navScanBtn" class="flex flex-col items-center space-y-1 text-emerald-400 font-semibold text-[10px] transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+        </svg>
+        <span>Scanner</span>
+      </button>
+
+      <button id="navRecentBtn" class="flex flex-col items-center space-y-1 text-slate-400 hover:text-slate-200 font-semibold text-[10px] transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>Recents</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- JAVASCRIPT APPLICATION LOGIC -->
+  <script>
+    (function () {
+      'use strict';
+
+      // --- CONFIGURATION & STATE ---
+      const APP_CONFIG = {
+        apiBase: 'https://world.openfoodfacts.org/api/v2/product',
+        maxRecentScans: 8,
+        storageKey: 'foodscan_uk_recent_v1',
+        soundStorageKey: 'foodscan_uk_sound_enabled',
+        // UK FSA Reference Intakes (RI) for adults
+        ri: {
+          energyKcal: 2000,
+          energyKj: 8400,
+          fat: 70, // g
+          satFat: 20, // g
+          sugars: 90, // g
+          salt: 6, // g
+          protein: 50, // g
+          carbs: 260, // g
+          fibre: 30 // g
+        },
+        // The 14 official UK mandatory allergens
+        uk14Allergens: [
+          { id: 'celery', name: 'Celery', icon: '🥬', keywords: ['celery', 'celeriac'] },
+          { id: 'cereals_gluten', name: 'Cereals containing Gluten', icon: '🌾', keywords: ['gluten', 'wheat', 'rye', 'barley', 'oats', 'spelt', 'kamut'] },
+          { id: 'crustaceans', name: 'Crustaceans', icon: '🦐', keywords: ['crustacean', 'crustaceans', 'prawn', 'crab', 'lobster', 'crayfish', 'shrimp'] },
+          { id: 'eggs', name: 'Eggs', icon: '🥚', keywords: ['egg', 'eggs', 'egg-white', 'egg-yolk'] },
+          { id: 'fish', name: 'Fish', icon: '🐟', keywords: ['fish', 'salmon', 'cod', 'tuna', 'haddock', 'anchovy'] },
+          { id: 'lupin', name: 'Lupin', icon: '🌸', keywords: ['lupin', 'lupine'] },
+          { id: 'milk', name: 'Milk & Dairy', icon: '🥛', keywords: ['milk', 'dairy', 'butter', 'cheese', 'cream', 'whey', 'casein', 'lactose', 'yogurt'] },
+          { id: 'molluscs', name: 'Molluscs', icon: '🦪', keywords: ['mollusc', 'molluscs', 'mussel', 'oyster', 'squid', 'octopus', 'snail', 'clam'] },
+          { id: 'mustard', name: 'Mustard', icon: '🟡', keywords: ['mustard'] },
+          { id: 'nuts', name: 'Tree Nuts', icon: '🌰', keywords: ['nut', 'nuts', 'almond', 'hazelnut', 'walnut', 'cashew', 'pecan', 'brazil', 'pistachio', 'macadamia'] },
+          { id: 'peanuts', name: 'Peanuts', icon: '🥜', keywords: ['peanut', 'peanuts', 'groundnut'] },
+          { id: 'sesame', name: 'Sesame Seeds', icon: '🌱', keywords: ['sesame', 'tahini'] },
+          { id: 'soya', name: 'Soya / Soybeans', icon: '🫘', keywords: ['soya', 'soy', 'soybean', 'tofu', 'soya-lecithin'] },
+          { id: 'sulphites', name: 'Sulphur Dioxide / Sulphites', icon: '🍷', keywords: ['sulphite', 'sulphites', 'sulfite', 'sulfites', 'sulfur-dioxide', 'sulphur-dioxide'] }
+        ]
+      };
+
+      const state = {
+        html5QrCode: null,
+        isScannerActive: false,
+        isPaused: false,
+        currentFacingMode: 'environment',
+        torchActive: false,
+        soundEnabled: localStorage.getItem(APP_CONFIG.soundStorageKey) !== 'false',
+        currentProduct: null,
+        recentScans: []
+      };
+
+      // --- DOM ELEMENT REFERENCES ---
+      const dom = {
+        // Sections
+        scannerSection: document.getElementById('scannerSection'),
+        loadingSection: document.getElementById('loadingSection'),
+        errorSection: document.getElementById('errorSection'),
+        productSection: document.getElementById('productSection'),
+        // Overlays & Cameras
+        cameraOverlay: document.getElementById('cameraOverlay'),
+        cameraErrorOverlay: document.getElementById('cameraErrorOverlay'),
+        cameraErrorTitle: document.getElementById('cameraErrorTitle'),
+        cameraErrorMessage: document.getElementById('cameraErrorMessage'),
+        retryCameraBtn: document.getElementById('retryCameraBtn'),
+        switchCameraBtn: document.getElementById('switchCameraBtn'),
+        torchBtn: document.getElementById('torchBtn'),
+        restartCameraBtn: document.getElementById('restartCameraBtn'),
+        imageUploadInput: document.getElementById('imageUploadInput'),
+        // Manual Search
+        manualBarcodeForm: document.getElementById('manualBarcodeForm'),
+        manualBarcodeInput: document.getElementById('manualBarcodeInput'),
+        clearManualInputBtn: document.getElementById('clearManualInputBtn'),
+        // Feedback & Modals
+        soundToggleBtn: document.getElementById('soundToggleBtn'),
+        soundIconOn: document.getElementById('soundIconOn'),
+        soundIconOff: document.getElementById('soundIconOff'),
+        historyModalBtn: document.getElementById('historyModalBtn'),
+        historyModal: document.getElementById('historyModal'),
+        historyListContainer: document.getElementById('historyListContainer'),
+        historyCountBadge: document.getElementById('historyCountBadge'),
+        clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+        closeHistoryModalBtn: document.getElementById('closeHistoryModalBtn'),
+        closeHistoryBottomBtn: document.getElementById('closeHistoryBottomBtn'),
+        navScanBtn: document.getElementById('navScanBtn'),
+        navRecentBtn: document.getElementById('navRecentBtn'),
+        offlineBanner: document.getElementById('offlineBanner'),
+        // Loading & Error Elements
+        loadingBarcodeText: document.getElementById('loadingBarcodeText'),
+        errorTitle: document.getElementById('errorTitle'),
+        errorSubtitle: document.getElementById('errorSubtitle'),
+        errorBarcodeDisplay: document.getElementById('errorBarcodeDisplay'),
+        errorScanAgainBtn: document.getElementById('errorScanAgainBtn'),
+        openFoodFactsContributeLink: document.getElementById('openFoodFactsContributeLink'),
+        // Product Details
+        backToScanBtn: document.getElementById('backToScanBtn'),
+        shareProductBtn: document.getElementById('shareProductBtn'),
+        bottomScanAgainBtn: document.getElementById('bottomScanAgainBtn'),
+        productImage: document.getElementById('productImage'),
+        productBrandBadge: document.getElementById('productBrandBadge'),
+        productQuantityBadge: document.getElementById('productQuantityBadge'),
+        productTitle: document.getElementById('productTitle'),
+        productCategories: document.getElementById('productCategories'),
+        productBarcode: document.getElementById('productBarcode'),
+        nutriScoreBadge: document.getElementById('nutriScoreBadge'),
+        nutriScoreLabel: document.getElementById('nutriScoreLabel'),
+        nutriScoreSummaryText: document.getElementById('nutriScoreSummaryText'),
+        novaGroupBadge: document.getElementById('novaGroupBadge'),
+        novaGroupLabel: document.getElementById('novaGroupLabel'),
+        novaExplainBox: document.getElementById('novaExplainBox'),
+        novaExplainText: document.getElementById('novaExplainText'),
+        novaIcon: document.getElementById('novaIcon'),
+        // Traffic Light Elements
+        tlFatCard: document.getElementById('tlFatCard'),
+        tlFatVal: document.getElementById('tlFatVal'),
+        tlFatLevel: document.getElementById('tlFatLevel'),
+        tlFatRI: document.getElementById('tlFatRI'),
+        tlSatFatCard: document.getElementById('tlSatFatCard'),
+        tlSatFatVal: document.getElementById('tlSatFatVal'),
+        tlSatFatLevel: document.getElementById('tlSatFatLevel'),
+        tlSatFatRI: document.getElementById('tlSatFatRI'),
+        tlSugarsCard: document.getElementById('tlSugarsCard'),
+        tlSugarsVal: document.getElementById('tlSugarsVal'),
+        tlSugarsLevel: document.getElementById('tlSugarsLevel'),
+        tlSugarsRI: document.getElementById('tlSugarsRI'),
+        tlSaltCard: document.getElementById('tlSaltCard'),
+        tlSaltVal: document.getElementById('tlSaltVal'),
+        tlSaltLevel: document.getElementById('tlSaltLevel'),
+        tlSaltRI: document.getElementById('tlSaltRI'),
+        tlEnergyKcal: document.getElementById('tlEnergyKcal'),
+        tlEnergyKj: document.getElementById('tlEnergyKj'),
+        // Allergens & Nutrition Table
+        allergensAlertContainer: document.getElementById('allergensAlertContainer'),
+        tracesAlertContainer: document.getElementById('tracesAlertContainer'),
+        tracesListText: document.getElementById('tracesListText'),
+        ingredientsText: document.getElementById('ingredientsText'),
+        toggleIngredientsBtn: document.getElementById('toggleIngredientsBtn'),
+        ingredientsBox: document.getElementById('ingredientsBox'),
+        nutritionTableBody: document.getElementById('nutritionTableBody'),
+        servingSizeNotice: document.getElementById('servingSizeNotice'),
+        thServing: document.getElementById('thServing'),
+        offProductUrl: document.getElementById('offProductUrl')
+      };
+
+      // --- WEB AUDIO FEEDBACK BEEP ---
+      let audioCtx = null;
+      function playScanFeedback() {
+        if (!state.soundEnabled) return;
+
+        // Trigger haptic vibration on supported devices
+        if ('vibrate' in navigator) {
+          try {
+            navigator.vibrate([70, 40, 70]);
+          } catch (e) {
+            // Ignore vibration errors
+          }
+        }
+
+        // Web Audio synthesized cheerful double beep
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return;
+          if (!audioCtx) {
+            audioCtx = new AudioContextClass();
+          }
+          if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+          }
+
+          const now = audioCtx.currentTime;
+          const osc1 = audioCtx.createOscillator();
+          const gain1 = audioCtx.createGain();
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(880, now); // A5
+          osc1.frequency.exponentialRampToValueAtTime(1320, now + 0.08); // E6
+          gain1.gain.setValueAtTime(0.18, now);
+          gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+          osc1.connect(gain1);
+          gain1.connect(audioCtx.destination);
+
+          osc1.start(now);
+          osc1.stop(now + 0.12);
+        } catch (e) {
+          console.warn('Audio playback error:', e);
+        }
+      }
+
+      // --- RECENT HISTORY STORAGE ---
+      function loadRecentScans() {
+        try {
+          const saved = localStorage.getItem(APP_CONFIG.storageKey);
+          state.recentScans = saved ? JSON.parse(saved) : [];
+          updateHistoryBadge();
+        } catch (e) {
+          state.recentScans = [];
+        }
+      }
+
+      function saveToRecentScans(product) {
+        if (!product || !product.code) return;
+        const entry = {
+          code: product.code,
+          name: product.product_name || product.product_name_en || 'Unknown Product',
+          brand: product.brands || '',
+          nutriscore: (product.nutriscore_grade || '').toUpperCase(),
+          image: product.image_front_small_url || product.image_front_url || product.image_url || '',
+          timestamp: Date.now()
+        };
+
+        // Filter out duplicate if existing
+        state.recentScans = state.recentScans.filter(item => item.code !== entry.code);
+        state.recentScans.unshift(entry);
+        if (state.recentScans.length > APP_CONFIG.maxRecentScans) {
+          state.recentScans = state.recentScans.slice(0, APP_CONFIG.maxRecentScans);
+        }
+
+        try {
+          localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(state.recentScans));
+        } catch (e) {
+          console.warn('LocalStorage save error:', e);
+        }
+        updateHistoryBadge();
+      }
+
+      function updateHistoryBadge() {
+        const count = state.recentScans.length;
+        if (count > 0) {
+          dom.historyCountBadge.textContent = count;
+          dom.historyCountBadge.classList.remove('hidden');
+        } else {
+          dom.historyCountBadge.classList.add('hidden');
+        }
+      }
+
+      function renderHistoryList() {
+        if (state.recentScans.length === 0) {
+          dom.historyListContainer.innerHTML = `
+            <div class="py-8 text-center text-slate-400 space-y-2">
+              <svg class="w-10 h-10 mx-auto text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+              <p class="text-xs">No recent scans yet.</p>
+              <p class="text-[11px] text-slate-500">Scanned food items will appear here.</p>
+            </div>
+          `;
+          return;
+        }
+
+        dom.historyListContainer.innerHTML = state.recentScans.map(item => {
+          const timeAgo = formatTimeAgo(item.timestamp);
+          const nutriClass = item.nutriscore ? `nutri-${item.nutriscore.toLowerCase()}` : 'bg-slate-700 text-slate-300';
+          return `
+            <div class="recent-item flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition" data-barcode="${item.code}">
+              <div class="flex items-center space-x-3 min-w-0">
+                <div class="w-12 h-12 rounded-lg bg-slate-900 overflow-hidden flex-shrink-0 flex items-center justify-center p-1 border border-slate-700">
+                  ${item.image 
+                    ? `<img src="${item.image}" alt="" class="w-full h-full object-contain" />`
+                    : `<svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`
+                  }
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-semibold text-white truncate">${escapeHtml(item.name)}</p>
+                  <p class="text-[11px] text-slate-400 truncate">${escapeHtml(item.brand || 'Unknown brand')}</p>
+                  <span class="text-[10px] text-slate-500">${timeAgo}</span>
+                </div>
+              </div>
+              <div class="flex items-center space-x-2 flex-shrink-0 pl-2">
+                ${item.nutriscore ? `<span class="w-6 h-6 rounded-md font-bold text-xs flex items-center justify-center ${nutriClass}">${item.nutriscore}</span>` : ''}
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Attach click listeners to history rows
+        dom.historyListContainer.querySelectorAll('.recent-item').forEach(el => {
+          el.addEventListener('click', () => {
+            const barcode = el.getAttribute('data-barcode');
+            closeHistoryModal();
+            fetchProductData(barcode);
+          });
+        });
+      }
+
+      function formatTimeAgo(timestamp) {
+        if (!timestamp) return '';
+        const seconds = Math.floor((Date.now() - timestamp) / 1000);
+        if (seconds < 60) return 'Just now';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        return `${days}d ago`;
+      }
+
+      // --- SOUND / FEEDBACK TOGGLE ---
+      function updateSoundUI() {
+        if (state.soundEnabled) {
+          dom.soundIconOn.classList.remove('hidden');
+          dom.soundIconOff.classList.add('hidden');
+        } else {
+          dom.soundIconOn.classList.add('hidden');
+          dom.soundIconOff.classList.remove('hidden');
+        }
+      }
+
+      function toggleSound() {
+        state.soundEnabled = !state.soundEnabled;
+        localStorage.setItem(APP_CONFIG.soundStorageKey, state.soundEnabled ? 'true' : 'false');
+        updateSoundUI();
+        if (state.soundEnabled) {
+          playScanFeedback();
+        }
+      }
+
+      // --- VIEW STATE SWITCHER ---
+      function showView(viewName) {
+        dom.scannerSection.classList.add('hidden');
+        dom.loadingSection.classList.add('hidden');
+        dom.errorSection.classList.add('hidden');
+        dom.productSection.classList.add('hidden');
+
+        if (viewName === 'scanner') {
+          dom.scannerSection.classList.remove('hidden');
+          resumeScanner();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if (viewName === 'loading') {
+          dom.loadingSection.classList.remove('hidden');
+          pauseScanner();
+        } else if (viewName === 'error') {
+          dom.errorSection.classList.remove('hidden');
+          pauseScanner();
+        } else if (viewName === 'product') {
+          dom.productSection.classList.remove('hidden');
+          pauseScanner();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }
+
+      // --- BARCODE SCANNER LOGIC (html5-qrcode) ---
+      async function initCameraScanner() {
+        if (!window.Html5Qrcode) {
+          showCameraError('Barcode scanner library not loaded. Please check your internet connection.');
+          return;
+        }
+
+        if (!state.html5QrCode) {
+          state.html5QrCode = new Html5Qrcode("reader");
+        }
+
+        const config = {
+          fps: 15,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const minDim = Math.min(viewfinderWidth, viewfinderHeight);
+            const edge = Math.floor(minDim * 0.75);
+            return { width: edge, height: Math.floor(edge * 0.65) };
+          },
+          aspectRatio: 1.0,
+          disableFlip: false,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+          }
+        };
+
+        try {
+          hideCameraError();
+          await state.html5QrCode.start(
+            { facingMode: state.currentFacingMode },
+            config,
+            onScanSuccess,
+            onScanFailure
+          );
+          state.isScannerActive = true;
+          state.isPaused = false;
+          checkTorchCapability();
+        } catch (err) {
+          console.warn('Camera start failure:', err);
+          showCameraError(formatCameraErrorMessage(err));
+        }
+      }
+
+      function onScanSuccess(decodedText, decodedResult) {
+        if (state.isPaused) return;
+        state.isPaused = true;
+        playScanFeedback();
+        
+        // Clean barcode string
+        const barcode = (decodedText || '').trim();
+        if (barcode) {
+          fetchProductData(barcode);
+        }
+      }
+
+      function onScanFailure(error) {
+        // Continuous frame failure, normal when no barcode is in frame
+      }
+
+      async function pauseScanner() {
+        state.isPaused = true;
+        if (state.html5QrCode && state.isScannerActive) {
+          try {
+            await state.html5QrCode.pause(true);
+          } catch (e) {
+            // Ignore pause errors
+          }
+        }
+      }
+
+      async function resumeScanner() {
+        state.isPaused = false;
+        if (state.html5QrCode && state.isScannerActive) {
+          try {
+            await state.html5QrCode.resume();
+          } catch (e) {
+            // If resume failed, re-initialize
+            initCameraScanner();
+          }
+        } else {
+          initCameraScanner();
+        }
+      }
+
+      async function switchCameraFacing() {
+        if (!state.html5QrCode) return;
+        state.currentFacingMode = state.currentFacingMode === 'environment' ? 'user' : 'environment';
+        try {
+          if (state.isScannerActive) {
+            await state.html5QrCode.stop();
+            state.isScannerActive = false;
+          }
+          await initCameraScanner();
+        } catch (e) {
+          console.warn('Camera switch error:', e);
+        }
+      }
+
+      async function checkTorchCapability() {
+        try {
+          // Check if torch/flashlight is supported
+          if (state.html5QrCode && typeof state.html5QrCode.getRunningTrackCapabilities === 'function') {
+            const capabilities = state.html5QrCode.getRunningTrackCapabilities();
+            if (capabilities && capabilities.torch) {
+              dom.torchBtn.classList.remove('hidden');
+              return;
+            }
+          }
+          dom.torchBtn.classList.add('hidden');
+        } catch (e) {
+          dom.torchBtn.classList.add('hidden');
+        }
+      }
+
+      async function toggleTorch() {
+        if (!state.html5QrCode) return;
+        try {
+          state.torchActive = !state.torchActive;
+          await state.html5QrCode.applyVideoConstraints({
+            advanced: [{ torch: state.torchActive }]
+          });
+          dom.torchBtn.classList.toggle('bg-amber-500/20', state.torchActive);
+          dom.torchBtn.classList.toggle('border-amber-400', state.torchActive);
+        } catch (e) {
+          console.warn('Torch toggle error:', e);
+        }
+      }
+
+      function formatCameraErrorMessage(err) {
+        const msg = String(err).toLowerCase();
+        if (msg.includes('notallowederror') || msg.includes('permission')) {
+          return 'Camera permission was denied. On iOS Safari, tap "AA" in the address bar > Website Settings > Camera > Allow, then refresh.';
+        }
+        if (msg.includes('notfounderror') || msg.includes('devices not found')) {
+          return 'No working camera device was detected on your system. You can still search manually or upload a barcode photo.';
+        }
+        if (msg.includes('notreadableerror') || msg.includes('trackstart')) {
+          return 'Camera is already in use by another application. Please close other camera apps and retry.';
+        }
+        return 'Could not access the camera. Please check your browser permissions or use the manual search below.';
+      }
+
+      function showCameraError(message) {
+        dom.cameraErrorMessage.textContent = message;
+        dom.cameraErrorOverlay.classList.remove('hidden');
+      }
+
+      function hideCameraError() {
+        dom.cameraErrorOverlay.classList.add('hidden');
+      }
+
+      // --- PHOTO UPLOAD DECODING ---
+      async function handleImageUpload(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        showView('loading');
+        dom.loadingBarcodeText.textContent = 'Scanning image file...';
+
+        try {
+          if (!state.html5QrCode) {
+            state.html5QrCode = new Html5Qrcode("reader");
+          }
+          const decodedText = await state.html5QrCode.scanFile(file, true);
+          if (decodedText) {
+            playScanFeedback();
+            fetchProductData(decodedText.trim());
+          }
+        } catch (err) {
+          console.warn('Image barcode scan error:', err);
+          showErrorState('Barcode Not Detected', 'Could not find a clear barcode in the uploaded image. Please try another angle or enter the number manually.', '');
+        } finally {
+          event.target.value = ''; // reset file input
+        }
+      }
+
+      // --- OPEN FOOD FACTS API INTEGRATION ---
+      async function fetchProductData(barcode) {
+        if (!barcode) return;
+        
+        // Show loading state
+        showView('loading');
+        dom.loadingBarcodeText.textContent = `Barcode: ${barcode}`;
+
+        if (!navigator.onLine) {
+          showErrorState('Network Offline', 'No internet connection detected. Please connect to Wi-Fi or mobile data to query Open Food Facts.', barcode);
+          return;
+        }
+
+        try {
+          const url = `${APP_CONFIG.apiBase}/${encodeURIComponent(barcode)}.json`;
+          
+          // Request options
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP Error ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          if (data.status === 1 && data.product) {
+            // Product found
+            state.currentProduct = data.product;
+            saveToRecentScans(data.product);
+            renderProductDetails(data.product);
+            showView('product');
+          } else {
+            // Product not in Open Food Facts database
+            showErrorState(
+              'Product Not Found',
+              'This product is not yet registered in the Open Food Facts worldwide database.',
+              barcode
+            );
+          }
+        } catch (err) {
+          console.error('API Fetch Error:', err);
+          showErrorState(
+            'Connection Error',
+            'Could not retrieve product data from Open Food Facts. Please check your network connection and try again.',
+            barcode
+          );
+        }
+      }
+
+      function showErrorState(title, message, barcode) {
+        dom.errorTitle.textContent = title;
+        dom.errorSubtitle.textContent = message;
+        if (barcode) {
+          dom.errorBarcodeDisplay.textContent = `Scanned Barcode: ${barcode}`;
+          dom.openFoodFactsContributeLink.href = `https://world.openfoodfacts.org/cgi/product.pl?type=edit&code=${encodeURIComponent(barcode)}`;
+          dom.openFoodFactsContributeLink.classList.remove('hidden');
+        } else {
+          dom.errorBarcodeDisplay.textContent = '';
+          dom.openFoodFactsContributeLink.classList.add('hidden');
+        }
+        showView('error');
+      }
+
+      // --- UK FSA TRAFFIC LIGHT CALCULATION ---
+      function calculateTrafficLights(nutriments, isBeverage = false) {
+        // Parse nutrients per 100g / 100ml
+        const fat = parseFloat(nutriments['fat_100g']) || 0;
+        const satFat = parseFloat(nutriments['saturated-fat_100g']) || 0;
+        const sugars = parseFloat(nutriments['sugars_100g']) || 0;
+        const salt = parseFloat(nutriments['salt_100g']) || 0;
+        const energyKcal = parseFloat(nutriments['energy-kcal_100g']) || (parseFloat(nutriments['energy_100g']) ? Math.round(parseFloat(nutriments['energy_100g']) / 4.184) : 0);
+        const energyKj = parseFloat(nutriments['energy-kj_100g']) || (parseFloat(nutriments['energy_100g']) || 0);
+
+        let levels = {
+          fat: 'low',
+          satFat: 'low',
+          sugars: 'low',
+          salt: 'low'
+        };
+
+        if (isBeverage) {
+          // UK FSA Drink Thresholds (per 100ml)
+          levels.fat = fat <= 1.5 ? 'low' : (fat <= 8.75 ? 'medium' : 'high');
+          levels.satFat = satFat <= 0.75 ? 'low' : (satFat <= 2.5 ? 'medium' : 'high');
+          levels.sugars = sugars <= 2.5 ? 'low' : (sugars <= 11.25 ? 'medium' : 'high');
+          levels.salt = salt <= 0.3 ? 'low' : (salt <= 0.75 ? 'medium' : 'high');
+        } else {
+          // UK FSA Food Thresholds (per 100g)
+          levels.fat = fat <= 3.0 ? 'low' : (fat <= 17.5 ? 'medium' : 'high');
+          levels.satFat = satFat <= 1.5 ? 'low' : (satFat <= 5.0 ? 'medium' : 'high');
+          levels.sugars = sugars <= 5.0 ? 'low' : (sugars <= 22.5 ? 'medium' : 'high');
+          levels.salt = salt <= 0.3 ? 'low' : (salt <= 1.5 ? 'medium' : 'high');
+        }
+
+        // Reference Intake % calculation (UK Adult RI)
+        const riPercent = {
+          fat: Math.round((fat / APP_CONFIG.ri.fat) * 100),
+          satFat: Math.round((satFat / APP_CONFIG.ri.satFat) * 100),
+          sugars: Math.round((sugars / APP_CONFIG.ri.sugars) * 100),
+          salt: Math.round((salt / APP_CONFIG.ri.salt) * 100),
+          energyKcal: Math.round((energyKcal / APP_CONFIG.ri.energyKcal) * 100)
+        };
+
+        return { fat, satFat, sugars, salt, energyKcal, energyKj, levels, riPercent };
+      }
+
+      function applyTrafficLightStyle(cardEl, levelBadgeEl, level) {
+        // Reset base classes
+        cardEl.className = 'rounded-xl p-3 flex flex-col justify-between text-center transition-all border';
+        levelBadgeEl.className = 'inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-md';
+
+        if (level === 'low') {
+          cardEl.classList.add('bg-emerald-950/40', 'border-emerald-500/40');
+          levelBadgeEl.classList.add('bg-emerald-500', 'text-slate-950');
+          levelBadgeEl.textContent = 'LOW';
+        } else if (level === 'medium') {
+          cardEl.classList.add('bg-amber-950/40', 'border-amber-500/40');
+          levelBadgeEl.classList.add('bg-amber-500', 'text-slate-950');
+          levelBadgeEl.textContent = 'MED';
+        } else {
+          cardEl.classList.add('bg-rose-950/40', 'border-rose-500/40');
+          levelBadgeEl.classList.add('bg-rose-500', 'text-white');
+          levelBadgeEl.textContent = 'HIGH';
+        }
+      }
+
+      // --- ALLERGEN DETECTION & EXTRACTION ---
+      function detectUKAllergens(product) {
+        const detected = [];
+        const traces = [];
+
+        const allergensTags = (product.allergens_tags || []).map(t => t.replace(/^[a-z]{2}:/i, '').toLowerCase().replace(/_/g, '-'));
+        const tracesTags = (product.traces_tags || []).map(t => t.replace(/^[a-z]{2}:/i, '').toLowerCase().replace(/_/g, '-'));
+        const ingredientsText = (product.ingredients_text || product.ingredients_text_en || '').toLowerCase();
+
+        APP_CONFIG.uk14Allergens.forEach(allergen => {
+          // Check allergens tags
+          const inTags = allergensTags.some(tag => allergen.keywords.some(kw => tag.includes(kw)));
+          // Check traces tags
+          const inTraces = tracesTags.some(tag => allergen.keywords.some(kw => tag.includes(kw)));
+          
+          if (inTags) {
+            detected.push(allergen);
+          } else if (inTraces) {
+            traces.push(allergen);
+          } else if (ingredientsText) {
+            // Text matching fallback
+            const hasKeyword = allergen.keywords.some(kw => {
+              const regex = new RegExp(`\\b${kw}\\b`, 'i');
+              return regex.test(ingredientsText);
+            });
+            if (hasKeyword) {
+              detected.push(allergen);
+            }
+          }
+        });
+
+        // Unique
+        const uniqueDetected = Array.from(new Set(detected.map(a => a.id))).map(id => detected.find(a => a.id === id));
+        const uniqueTraces = Array.from(new Set(traces.map(a => a.id))).map(id => traces.find(a => a.id === id));
+
+        return { detected: uniqueDetected, traces: uniqueTraces };
+      }
+
+      function highlightIngredientsText(rawText, detectedAllergens) {
+        if (!rawText) return 'No ingredients information provided.';
+        let text = escapeHtml(rawText);
+
+        // Bold and highlight allergens keywords
+        const keywordsToHighlight = [];
+        APP_CONFIG.uk14Allergens.forEach(a => {
+          keywordsToHighlight.push(...a.keywords);
+        });
+
+        keywordsToHighlight.sort((a, b) => b.length - a.length);
+
+        keywordsToHighlight.forEach(kw => {
+          const regex = new RegExp(`\\b(${kw}[a-z]*)\\b`, 'gi');
+          text = text.replace(regex, `<strong class="text-amber-300 font-bold bg-amber-500/10 px-0.5 rounded">$1</strong>`);
+        });
+
+        return text;
+      }
+
+      // --- NOVA SCALE EXPLANATION ---
+      const NOVA_INFO = {
+        1: { name: 'Unprocessed or minimally processed foods', desc: 'Fresh, dried, ground or frozen raw ingredients without added substances.', color: 'text-emerald-400', icon: '🌱' },
+        2: { name: 'Processed culinary ingredients', desc: 'Oils, butter, sugar, and salt obtained directly from foods or nature.', color: 'text-yellow-400', icon: '🧂' },
+        3: { name: 'Processed foods', desc: 'Simple foods made with few ingredients (canned veg, cheeses, freshly made bread).', color: 'text-amber-400', icon: '🍞' },
+        4: { name: 'Ultra-processed food and drink products', desc: 'Industrial formulations containing artificial flavours, colours, emulsifiers and sweeteners.', color: 'text-rose-400', icon: '⚠️' }
+      };
+
+      // --- RENDER COMPLETE PRODUCT VIEW ---
+      function renderProductDetails(product) {
+        const nutriments = product.nutriments || {};
+        
+        // 1. Basic details
+        const title = product.product_name || product.product_name_en || 'Unnamed Product';
+        const brand = product.brands || 'Brand not specified';
+        const quantity = product.quantity || product.serving_size || '';
+        const categories = product.categories || product.categories_en || 'General Grocery';
+        const barcode = product.code || '';
+        const imageUrl = product.image_front_url || product.image_url || product.image_front_small_url || '';
+
+        dom.productTitle.textContent = title;
+        dom.productBrandBadge.textContent = brand;
+        dom.productQuantityBadge.textContent = quantity;
+        dom.productCategories.textContent = categories.split(',').slice(0, 3).join(', ');
+        dom.productBarcode.textContent = barcode;
+        dom.productImage.src = imageUrl;
+        dom.offProductUrl.href = `https://world.openfoodfacts.org/product/${encodeURIComponent(barcode)}`;
+
+        // 2. Nutri-Score calculation & Spectrum
+        const nutriscore = (product.nutriscore_grade || '').toUpperCase();
+        ['a', 'b', 'c', 'd', 'e'].forEach(grade => {
+          const el = document.getElementById(`ns-${grade}`);
+          if (el) {
+            el.classList.remove('ring-2', 'ring-white', 'opacity-100', 'scale-110');
+            el.classList.add('opacity-30');
+          }
+        });
+
+        if (['A', 'B', 'C', 'D', 'E'].includes(nutriscore)) {
+          dom.nutriScoreBadge.textContent = nutriscore;
+          dom.nutriScoreBadge.className = `w-10 h-10 rounded-lg flex items-center justify-center font-black text-xl shadow-md nutri-${nutriscore.toLowerCase()}`;
+          dom.nutriScoreLabel.textContent = `Grade ${nutriscore}`;
+          
+          const gradeNames = { A: 'Very High Nutritional Quality', B: 'Good Quality', C: 'Average Quality', D: 'Low Quality', E: 'Poor Quality' };
+          dom.nutriScoreSummaryText.textContent = `Grade ${nutriscore}: ${gradeNames[nutriscore] || ''}`;
+
+          const activeSpectrum = document.getElementById(`ns-${nutriscore.toLowerCase()}`);
+          if (activeSpectrum) {
+            activeSpectrum.classList.remove('opacity-30');
+            activeSpectrum.classList.add('opacity-100', 'ring-2', 'ring-white', 'scale-105');
+          }
+        } else {
+          dom.nutriScoreBadge.textContent = '?';
+          dom.nutriScoreBadge.className = 'w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-400';
+          dom.nutriScoreLabel.textContent = 'Not Rated';
+          dom.nutriScoreSummaryText.textContent = 'Nutri-Score not available for this item';
+        }
+
+        // 3. NOVA Group
+        const nova = parseInt(product.nova_group, 10);
+        if (nova >= 1 && nova <= 4) {
+          dom.novaGroupBadge.textContent = nova;
+          const info = NOVA_INFO[nova];
+          dom.novaGroupLabel.textContent = `Group ${nova}`;
+          dom.novaExplainText.textContent = `${info.name} — ${info.desc}`;
+          dom.novaIcon.textContent = info.icon;
+          dom.novaGroupBadge.className = `w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-black text-lg ${info.color} shadow-md`;
+          dom.novaExplainBox.classList.remove('hidden');
+        } else {
+          dom.novaGroupBadge.textContent = '?';
+          dom.novaGroupLabel.textContent = 'Unknown';
+          dom.novaExplainBox.classList.add('hidden');
+        }
+
+        // 4. UK Front-of-Pack Traffic Lights
+        const isBeverage = (product.categories_tags || []).some(cat => cat.includes('beverage') || cat.includes('drink'));
+        const tl = calculateTrafficLights(nutriments, isBeverage);
+
+        // Fat
+        dom.tlFatVal.textContent = `${tl.fat.toFixed(1)}g`;
+        dom.tlFatRI.textContent = `${tl.riPercent.fat}% RI`;
+        applyTrafficLightStyle(dom.tlFatCard, dom.tlFatLevel, tl.levels.fat);
+
+        // Saturates
+        dom.tlSatFatVal.textContent = `${tl.satFat.toFixed(1)}g`;
+        dom.tlSatFatRI.textContent = `${tl.riPercent.satFat}% RI`;
+        applyTrafficLightStyle(dom.tlSatFatCard, dom.tlSatFatLevel, tl.levels.satFat);
+
+        // Sugars
+        dom.tlSugarsVal.textContent = `${tl.sugars.toFixed(1)}g`;
+        dom.tlSugarsRI.textContent = `${tl.riPercent.sugars}% RI`;
+        applyTrafficLightStyle(dom.tlSugarsCard, dom.tlSugarsLevel, tl.levels.sugars);
+
+        // Salt
+        dom.tlSaltVal.textContent = `${tl.salt.toFixed(2)}g`;
+        dom.tlSaltRI.textContent = `${tl.riPercent.salt}% RI`;
+        applyTrafficLightStyle(dom.tlSaltCard, dom.tlSaltLevel, tl.levels.salt);
+
+        // Energy
+        dom.tlEnergyKcal.textContent = `${Math.round(tl.energyKcal)} kcal`;
+        dom.tlEnergyKj.textContent = `(${Math.round(tl.energyKj)} kJ) • ${tl.riPercent.energyKcal}% RI`;
+
+        // 5. Allergens & Traces
+        const allergenData = detectUKAllergens(product);
+        if (allergenData.detected.length > 0) {
+          dom.allergensAlertContainer.innerHTML = `
+            <div class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs">
+              <div class="flex items-center space-x-2 text-rose-400 font-bold mb-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <span>Contains Allergens (${allergenData.detected.length} UK Mandatory):</span>
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                ${allergenData.detected.map(a => `
+                  <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-200 border border-rose-500/40 text-xs font-bold shadow-sm">
+                    <span>${a.icon}</span>
+                    <span>${a.name}</span>
+                  </span>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        } else {
+          dom.allergensAlertContainer.innerHTML = `
+            <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 flex items-center space-x-2">
+              <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span>No mandatory UK allergens explicitly flagged by manufacturer. (Always verify packaging).</span>
+            </div>
+          `;
+        }
+
+        // Traces
+        if (allergenData.traces.length > 0) {
+          dom.tracesAlertContainer.classList.remove('hidden');
+          dom.tracesListText.textContent = allergenData.traces.map(a => `${a.icon} ${a.name}`).join(', ');
+        } else {
+          dom.tracesAlertContainer.classList.add('hidden');
+        }
+
+        // 6. Ingredients
+        const rawIngredients = product.ingredients_text || product.ingredients_text_en || '';
+        dom.ingredientsText.innerHTML = highlightIngredientsText(rawIngredients, allergenData.detected);
+
+        // 7. Full Nutritional Breakdown Table
+        const servingSize = product.serving_size || '';
+        if (servingSize) {
+          dom.servingSizeNotice.textContent = `Serving Size: ${servingSize}`;
+          dom.thServing.textContent = `Per Serving (${servingSize})`;
+          dom.thServing.classList.remove('hidden');
+        } else {
+          dom.servingSizeNotice.textContent = `Per 100g / ml`;
+          dom.thServing.classList.add('hidden');
+        }
+
+        const tableRows = [
+          { label: 'Energy (kJ)', key100: 'energy-kj_100g', fallback100: 'energy_100g', keyServ: 'energy-kj_serving', unit: 'kJ' },
+          { label: 'Energy (kcal)', key100: 'energy-kcal_100g', keyServ: 'energy-kcal_serving', unit: 'kcal' },
+          { label: 'Fat', key100: 'fat_100g', keyServ: 'fat_serving', unit: 'g', bold: true },
+          { label: '– of which Saturates', key100: 'saturated-fat_100g', keyServ: 'saturated-fat_serving', unit: 'g', indent: true },
+          { label: 'Carbohydrates', key100: 'carbohydrates_100g', keyServ: 'carbohydrates_serving', unit: 'g', bold: true },
+          { label: '– of which Sugars', key100: 'sugars_100g', keyServ: 'sugars_serving', unit: 'g', indent: true },
+          { label: 'Fibre', key100: 'fiber_100g', keyServ: 'fiber_serving', unit: 'g' },
+          { label: 'Protein', key100: 'proteins_100g', keyServ: 'proteins_serving', unit: 'g', bold: true },
+          { label: 'Salt', key100: 'salt_100g', keyServ: 'salt_serving', unit: 'g', bold: true, highlight: true }
+        ];
+
+        dom.nutritionTableBody.innerHTML = tableRows.map(row => {
+          const val100Raw = nutriments[row.key100] !== undefined ? nutriments[row.key100] : (row.fallback100 ? nutriments[row.fallback100] : null);
+          const val100 = val100Raw !== null && val100Raw !== undefined ? `${Number(val100Raw).toFixed(1)}${row.unit}` : '–';
+          
+          let valServ = '–';
+          if (servingSize && nutriments[row.keyServ] !== undefined) {
+            valServ = `${Number(nutriments[row.keyServ]).toFixed(1)}${row.unit}`;
+          }
+
+          const indentClass = row.indent ? 'pl-4 text-slate-400 font-normal' : (row.bold ? 'font-bold text-white' : 'text-slate-300');
+          const highlightClass = row.highlight ? 'bg-emerald-500/5' : '';
+
+          return `
+            <tr class="${highlightClass}">
+              <td class="py-2.5 pr-2 ${indentClass}">${row.label}</td>
+              <td class="py-2.5 px-2 text-right font-mono text-slate-200">${val100}</td>
+              ${servingSize ? `<td class="py-2.5 pl-2 text-right font-mono text-slate-400">${valServ}</td>` : ''}
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // --- HELPERS & MODALS ---
+      function openHistoryModal() {
+        renderHistoryList();
+        dom.historyModal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+      }
+
+      function closeHistoryModal() {
+        dom.historyModal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      // --- EVENT LISTENERS INITIALIZATION ---
+      function setupEventListeners() {
+        // Sound toggle
+        dom.soundToggleBtn.addEventListener('click', toggleSound);
+
+        // History modal triggers
+        dom.historyModalBtn.addEventListener('click', openHistoryModal);
+        dom.navRecentBtn.addEventListener('click', openHistoryModal);
+        dom.closeHistoryModalBtn.addEventListener('click', closeHistoryModal);
+        dom.closeHistoryBottomBtn.addEventListener('click', closeHistoryModal);
+        dom.historyModal.addEventListener('click', (e) => {
+          if (e.target === dom.historyModal) closeHistoryModal();
+        });
+
+        dom.clearHistoryBtn.addEventListener('click', () => {
+          if (confirm('Clear all recent scan history?')) {
+            state.recentScans = [];
+            localStorage.removeItem(APP_CONFIG.storageKey);
+            updateHistoryBadge();
+            renderHistoryList();
+          }
+        });
+
+        // Navigation
+        dom.navScanBtn.addEventListener('click', () => showView('scanner'));
+        dom.backToScanBtn.addEventListener('click', () => showView('scanner'));
+        dom.bottomScanAgainBtn.addEventListener('click', () => showView('scanner'));
+        dom.errorScanAgainBtn.addEventListener('click', () => showView('scanner'));
+
+        // Camera Controls
+        dom.switchCameraBtn.addEventListener('click', switchCameraFacing);
+        dom.torchBtn.addEventListener('click', toggleTorch);
+        dom.restartCameraBtn.addEventListener('click', initCameraScanner);
+        dom.retryCameraBtn.addEventListener('click', initCameraScanner);
+        dom.imageUploadInput.addEventListener('change', handleImageUpload);
+
+        // Manual Barcode Form
+        dom.manualBarcodeForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const code = dom.manualBarcodeInput.value.trim();
+          if (code) {
+            fetchProductData(code);
+          }
+        });
+
+        dom.manualBarcodeInput.addEventListener('input', (e) => {
+          if (e.target.value) {
+            dom.clearManualInputBtn.classList.remove('hidden');
+          } else {
+            dom.clearManualInputBtn.classList.add('hidden');
+          }
+        });
+
+        dom.clearManualInputBtn.addEventListener('click', () => {
+          dom.manualBarcodeInput.value = '';
+          dom.clearManualInputBtn.classList.add('hidden');
+          dom.manualBarcodeInput.focus();
+        });
+
+        // Sample test chips
+        document.querySelectorAll('.sample-barcode-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const barcode = btn.getAttribute('data-barcode');
+            dom.manualBarcodeInput.value = barcode;
+            dom.clearManualInputBtn.classList.remove('hidden');
+            fetchProductData(barcode);
+          });
+        });
+
+        // Ingredients expand toggle
+        dom.toggleIngredientsBtn.addEventListener('click', () => {
+          dom.ingredientsBox.classList.toggle('max-h-48');
+        });
+
+        // Share API
+        dom.shareProductBtn.addEventListener('click', async () => {
+          if (!state.currentProduct) return;
+          const name = state.currentProduct.product_name || state.currentProduct.product_name_en || 'Product';
+          const code = state.currentProduct.code || '';
+          const url = `https://world.openfoodfacts.org/product/${encodeURIComponent(code)}`;
+          
+          if (navigator.share) {
+            try {
+              await navigator.share({
+                title: `${name} - UK Food Nutrition`,
+                text: `Check out nutritional and allergen info for ${name} on Open Food Facts:`,
+                url: url
+              });
+            } catch (err) {
+              // Share cancelled
+            }
+          } else {
+            // Fallback clipboard copy
+            try {
+              await navigator.clipboard.writeText(url);
+              alert('Product link copied to clipboard!');
+            } catch (err) {
+              prompt('Copy product link:', url);
+            }
+          }
+        });
+
+        // Online / Offline monitor
+        window.addEventListener('online', () => dom.offlineBanner.classList.add('hidden'));
+        window.addEventListener('offline', () => dom.offlineBanner.classList.remove('hidden'));
+      }
+
+      // --- APP BOOTSTRAP ---
+      function initApp() {
+        loadRecentScans();
+        updateSoundUI();
+        setupEventListeners();
+
+        if (!navigator.onLine) {
+          dom.offlineBanner.classList.remove('hidden');
+        }
+
+        // Start camera scanner on load
+        initCameraScanner();
+      }
+
+      // Run on DOM ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initApp);
+      } else {
+        initApp();
+      }
+    })();
+  </script>
+</body>
+</html>
