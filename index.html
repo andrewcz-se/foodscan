@@ -267,37 +267,6 @@
           </p>
         </div>
 
-        <!-- FLOATING ZOOM SELECTOR (Crucial for iPhone 14/15/15 Pro & modern Androids) -->
-        <div id="zoomPillContainer" class="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-auto z-10">
-          <div class="glass-pill px-1 py-1 rounded-full flex items-center space-x-1 shadow-lg border border-slate-700/70">
-            <button type="button" class="zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-slate-950 shadow-sm transition" data-zoom="1">
-              1x
-            </button>
-            <button type="button" disabled class="zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-600 opacity-50 cursor-not-allowed transition" data-zoom="2">
-              2x
-            </button>
-            <button type="button" disabled class="zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-600 opacity-50 cursor-not-allowed transition" data-zoom="3">
-              3x
-            </button>
-          </div>
-
-          <!-- Camera Lens Switcher (e.g. Ultra-Wide / Macro vs Main Wide) -->
-          <button id="lensCycleBtn" title="Switch Lens" class="hidden p-2 rounded-full glass-pill text-slate-200 hover:text-white shadow-lg text-xs font-semibold flex items-center space-x-1 px-2.5 transition active:scale-95">
-            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
-            </svg>
-            <span id="lensLabelText" class="text-[10px]">Macro / Lens</span>
-          </button>
-        </div>
-
-        <!-- Torch Button -->
-        <button id="torchBtn" title="Toggle Flashlight" class="hidden absolute bottom-3 left-3 z-10 pointer-events-auto p-2.5 rounded-full bg-slate-900/85 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white shadow-lg transition active:scale-95">
-          <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-          </svg>
-        </button>
-
         <!-- CAMERA PERMISSION & TROUBLESHOOTING MODAL / OVERLAY -->
         <div id="cameraErrorOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md p-4 sm:p-6 flex flex-col items-center justify-center text-center z-30 overflow-y-auto">
           <div class="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-2 flex-shrink-0">
@@ -346,18 +315,6 @@
               📷 Take Photo with System Camera
             </label>
           </div>
-        </div>
-      </div>
-
-      <!-- Modern Phone Focus Helper Tip Box -->
-      <div class="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/20 text-xs text-slate-300 flex items-start space-x-2.5">
-        <span class="text-base flex-shrink-0">🔍</span>
-        <div class="space-y-1">
-          <p class="font-semibold text-emerald-400 text-[11px]">iPhone 15 & Flagship Camera Tip</p>
-          <p class="text-[11px] text-slate-400 leading-relaxed">
-            Modern phones have large camera sensors that cannot focus when held too close (&lt;15cm). 
-            Hold the phone <strong>15–20 cm (6–8 in) away</strong> and use the <strong>2x zoom</strong> button above for instant sharp focus!
-          </p>
         </div>
       </div>
 
@@ -880,16 +837,9 @@
         html5QrCode: null,
         isScannerActive: false,
         isPaused: false,
-        torchActive: false,
         soundEnabled: localStorage.getItem(APP_CONFIG.soundStorageKey) !== 'false',
         currentProduct: null,
         recentScans: [],
-        // Zoom & Lens Management for iPhone 15 & modern flagship cameras
-        currentZoom: 1.0,
-        hardwareZoomSupported: false,
-        zoomCapabilities: { min: 1.0, max: 1.0, step: 0.1 },
-        availableCameras: [],
-        currentCameraIndex: 0,
         isCheckingPermission: false
       };
 
@@ -914,10 +864,6 @@
         retrySpinner: document.getElementById('retrySpinner'),
         retryBtnText: document.getElementById('retryBtnText'),
         reloadPageBtn: document.getElementById('reloadPageBtn'),
-        torchBtn: document.getElementById('torchBtn'),
-        lensCycleBtn: document.getElementById('lensCycleBtn'),
-        lensLabelText: document.getElementById('lensLabelText'),
-        zoomPillContainer: document.getElementById('zoomPillContainer'),
         restartCameraBtn: document.getElementById('restartCameraBtn'),
         imageUploadInput: document.getElementById('imageUploadInput'),
         // Manual Search
@@ -1195,154 +1141,7 @@
         }
       }
 
-      // --- ADVANCED CAMERA & FOCUS / ZOOM MANAGEMENT ---
-      async function checkCameraCapabilities() {
-        try {
-          if (state.html5QrCode && typeof state.html5QrCode.getRunningTrackCapabilities === 'function') {
-            const capabilities = state.html5QrCode.getRunningTrackCapabilities();
-            
-            // 1. Check Torch
-            if (capabilities && capabilities.torch) {
-              dom.torchBtn.classList.remove('hidden');
-            } else {
-              dom.torchBtn.classList.add('hidden');
-            }
-
-            // 2. Check Hardware Zoom
-            if (capabilities && capabilities.zoom) {
-              state.hardwareZoomSupported = true;
-              state.zoomCapabilities = capabilities.zoom;
-              console.log('Hardware Zoom Supported:', capabilities.zoom);
-              
-              // Keep the camera at its native 1x setting. In particular, do not
-              // call applyConstraints during startup because Safari may recapture
-              // multi-lens iPhone cameras and leave a black preview.
-              state.currentZoom = 1.0;
-              updateZoomControls();
-              return;
-            }
-          }
-        } catch (e) {
-          console.warn('Capability check error:', e);
-        }
-
-        // CSS scaling only enlarges the preview, not the frames decoded by the
-        // scanner, so cameras without hardware zoom remain at native 1x.
-        state.hardwareZoomSupported = false;
-        state.currentZoom = 1.0;
-        updateZoomControls();
-      }
-
-      function updateZoomControls() {
-        document.querySelectorAll('.zoom-btn').forEach(btn => {
-          const zoom = parseFloat(btn.getAttribute('data-zoom'));
-          const supported = zoom === 1 || (
-            state.hardwareZoomSupported &&
-            zoom >= (state.zoomCapabilities.min || 1) &&
-            zoom <= (state.zoomCapabilities.max || 1)
-          );
-          const selected = Math.abs(zoom - state.currentZoom) < 0.2;
-
-          btn.disabled = !supported;
-          if (!supported) {
-            btn.className = 'zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-600 opacity-50 cursor-not-allowed transition';
-          } else if (selected) {
-            btn.className = 'zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-slate-950 shadow-sm transition';
-          } else {
-            btn.className = 'zoom-btn px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-300 hover:text-white transition';
-          }
-        });
-      }
-
-      async function applyZoom(zoomFactor) {
-        const requestedZoom = parseFloat(zoomFactor);
-        if (!Number.isFinite(requestedZoom)) return;
-
-        // Avoid reapplying an unchanged constraint when returning to the
-        // scanner view; WebKit can recapture the rear camera unnecessarily.
-        if (Math.abs(requestedZoom - state.currentZoom) < 0.01) {
-          updateZoomControls();
-          return;
-        }
-
-        // Apply zoom only through the camera track so the decoder sees the same
-        // enlarged image as the user. Unsupported cameras stay at native 1x.
-        if (state.hardwareZoomSupported && state.html5QrCode) {
-          try {
-            const clamped = Math.min(Math.max(requestedZoom, state.zoomCapabilities.min || 1), state.zoomCapabilities.max || 1);
-            await state.html5QrCode.applyVideoConstraints({
-              advanced: [{ zoom: clamped }]
-            });
-            state.currentZoom = clamped;
-            updateZoomControls();
-            return;
-          } catch (e) {
-            console.warn('Hardware zoom apply error:', e);
-          }
-        }
-
-        state.currentZoom = 1.0;
-        const videoEl = document.querySelector('#reader video');
-        if (videoEl) videoEl.style.transform = 'none';
-        updateZoomControls();
-      }
-
-      async function enumerateAllCameras() {
-        try {
-          if (window.Html5Qrcode && typeof Html5Qrcode.getCameras === 'function') {
-            const cameras = await Html5Qrcode.getCameras();
-            if (cameras && cameras.length > 0) {
-              const labelledBackCameras = cameras.filter(c => {
-                const label = (c.label || '').toLowerCase();
-                return !label.includes('front') && !label.includes('user') && (
-                  label.includes('back') ||
-                  label.includes('rear') ||
-                  label.includes('environment') ||
-                  label.includes('wide') ||
-                  label.includes('telephoto') ||
-                  label.includes('macro')
-                );
-              });
-
-              // The currently running environment camera is known to be rear-facing,
-              // even when iOS supplies an opaque or localised device label.
-              let activeCamera = null;
-              try {
-                const settings = state.html5QrCode.getRunningTrackSettings();
-                activeCamera = cameras.find(c => c.id === settings.deviceId) || null;
-              } catch (e) {
-                // Track settings are optional on older browsers.
-              }
-
-              state.availableCameras = [activeCamera, ...labelledBackCameras]
-                .filter((camera, index, list) => camera && list.findIndex(item => item && item.id === camera.id) === index);
-              state.currentCameraIndex = Math.max(0, state.availableCameras.findIndex(c => activeCamera && c.id === activeCamera.id));
-
-              if (state.availableCameras.length > 1) {
-                dom.lensCycleBtn.classList.remove('hidden');
-              } else {
-                dom.lensCycleBtn.classList.add('hidden');
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Could not enumerate cameras:', e);
-        }
-      }
-
-      async function cycleCameraLens() {
-        if (!state.availableCameras || state.availableCameras.length <= 1) return;
-        state.currentCameraIndex = (state.currentCameraIndex + 1) % state.availableCameras.length;
-        const selectedCam = state.availableCameras[state.currentCameraIndex];
-        
-        if (dom.lensLabelText) {
-          dom.lensLabelText.textContent = selectedCam.label ? selectedCam.label.split('(')[0].slice(0, 12) : `Lens ${state.currentCameraIndex + 1}`;
-        }
-
-        await cleanupAndRestartScanner(selectedCam.id);
-      }
-
-      // Completely clean up any running scanner instance
+      // --- CAMERA LIFECYCLE ---
       async function resetScannerInstance() {
         if (state.html5QrCode) {
           try {
@@ -1361,16 +1160,11 @@
         }
         state.isScannerActive = false;
         state.isPaused = false;
-        state.hardwareZoomSupported = false;
-        state.currentZoom = 1.0;
-        state.torchActive = false;
-        dom.torchBtn.classList.add('hidden');
-        updateZoomControls();
       }
 
-      async function cleanupAndRestartScanner(deviceId = null) {
+      async function cleanupAndRestartScanner() {
         await resetScannerInstance();
-        await initCameraScanner(deviceId);
+        await initCameraScanner();
       }
 
       // Direct User-Gesture Permission Requester
@@ -1398,7 +1192,7 @@
       }
 
       // --- BARCODE SCANNER INITIALIZATION ---
-      async function initCameraScanner(deviceId = null) {
+      async function initCameraScanner() {
         if (!window.Html5Qrcode) {
           showCameraError('Barcode scanner library not loaded. Please check your internet connection.');
           return;
@@ -1420,19 +1214,14 @@
 
         state.html5QrCode = new Html5Qrcode("reader", {
           formatsToSupport: supportedFormats,
-          verbose: false,
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true
-          }
+          verbose: false
         });
 
-        // Prefer the rear camera exclusively. Exact mode prevents Safari from
-        // silently choosing the selfie camera when a rear camera is present.
-        const cameraIdentifier = deviceId ? deviceId : { facingMode: { exact: 'environment' } };
-
-        // 2nd Argument: Scanner Config without rigid aspectRatio to prevent iOS 17 black screen freeze
+        // "environment" is the portable rear-camera request. Leave resolution,
+        // lens selection and zoom at the browser's native defaults.
+        const cameraIdentifier = { facingMode: 'environment' };
         const scanConfig = {
-          fps: 15,
+          fps: 10,
           qrbox: (viewfinderWidth, viewfinderHeight) => {
             const boxWidth = Math.floor(viewfinderWidth * 0.88);
             const boxHeight = Math.floor(Math.min(viewfinderHeight * 0.45, 180));
@@ -1454,75 +1243,9 @@
           state.isScannerActive = true;
           state.isPaused = false;
           hideCameraError();
-          
-          // Force video element to play and render visibly
-          await ensureVideoPlayback();
-
-          // Detect optional controls without changing the native camera state.
-          await checkCameraCapabilities();
-          await enumerateAllCameras();
         } catch (err) {
-          console.warn('Camera start with standard constraints failed, attempting fallback:', err);
-          
-          // Cleanly re-create instance for fallback attempt
-          try {
-            await resetScannerInstance();
-
-            state.html5QrCode = new Html5Qrcode("reader", {
-              formatsToSupport: supportedFormats,
-              verbose: false
-            });
-
-            const basicScanConfig = {
-              fps: 15,
-              qrbox: (viewfinderWidth, viewfinderHeight) => {
-                const boxWidth = Math.floor(viewfinderWidth * 0.85);
-                const boxHeight = Math.floor(Math.min(viewfinderHeight * 0.5, 160));
-                return { width: Math.max(boxWidth, 240), height: Math.max(boxHeight, 100) };
-              },
-              disableFlip: true
-            };
-
-            const fallbackCameraIdentifier = deviceId ? deviceId : { facingMode: 'environment' };
-            await state.html5QrCode.start(
-              fallbackCameraIdentifier,
-              basicScanConfig,
-              onScanSuccess,
-              onScanFailure
-            );
-
-            state.isScannerActive = true;
-            state.isPaused = false;
-            hideCameraError();
-
-            await ensureVideoPlayback();
-            await checkCameraCapabilities();
-            await enumerateAllCameras();
-          } catch (fallbackErr) {
-            console.error('Fatal camera error:', fallbackErr);
-            showCameraError(formatCameraErrorMessage(fallbackErr));
-          }
-        }
-      }
-
-      async function ensureVideoPlayback() {
-        const video = document.querySelector('#reader video');
-        if (video) {
-          video.setAttribute('playsinline', 'true');
-          video.setAttribute('webkit-playsinline', 'true');
-          video.setAttribute('autoplay', 'true');
-          video.setAttribute('muted', 'true');
-          video.muted = true;
-          video.playsInline = true;
-          video.style.opacity = '1';
-          video.style.visibility = 'visible';
-          
-          if (video.paused) await video.play();
-        }
-
-        const shadedRegion = document.getElementById('qr-shaded-region');
-        if (shadedRegion) {
-          shadedRegion.style.display = 'none';
+          console.error('Camera start failed:', err);
+          showCameraError(formatCameraErrorMessage(err));
         }
       }
 
@@ -1558,26 +1281,11 @@
         if (state.html5QrCode && state.isScannerActive) {
           try {
             await state.html5QrCode.resume();
-            await applyZoom(state.currentZoom);
           } catch (e) {
             cleanupAndRestartScanner();
           }
         } else {
           cleanupAndRestartScanner();
-        }
-      }
-
-      async function toggleTorch() {
-        if (!state.html5QrCode) return;
-        try {
-          state.torchActive = !state.torchActive;
-          await state.html5QrCode.applyVideoConstraints({
-            advanced: [{ torch: state.torchActive }]
-          });
-          dom.torchBtn.classList.toggle('bg-amber-500/20', state.torchActive);
-          dom.torchBtn.classList.toggle('border-amber-400', state.torchActive);
-        } catch (e) {
-          console.warn('Torch toggle error:', e);
         }
       }
 
@@ -2117,22 +1825,11 @@
         dom.bottomScanAgainBtn.addEventListener('click', () => showView('scanner'));
         dom.errorScanAgainBtn.addEventListener('click', () => showView('scanner'));
 
-        // Camera Controls & Direct Permission Requester
-        dom.torchBtn.addEventListener('click', toggleTorch);
-        dom.lensCycleBtn.addEventListener('click', cycleCameraLens);
+        // Camera recovery and permission controls
         dom.restartCameraBtn.addEventListener('click', () => cleanupAndRestartScanner());
         dom.retryCameraBtn.addEventListener('click', requestCameraPermissionDirectly);
         dom.reloadPageBtn.addEventListener('click', () => window.location.reload());
         dom.imageUploadInput.addEventListener('change', handleImageUpload);
-
-        // Zoom buttons
-        document.querySelectorAll('.zoom-btn').forEach(btn => {
-          btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const z = btn.getAttribute('data-zoom');
-            applyZoom(z);
-          });
-        });
 
         // Manual Barcode Form
         dom.manualBarcodeForm.addEventListener('submit', (e) => {
