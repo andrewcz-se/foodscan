@@ -99,11 +99,11 @@
     }
 
     #reader video {
-      position: absolute !important;
-      inset: 0 !important;
+      position: relative !important;
       width: 100% !important;
-      height: 100% !important;
-      object-fit: cover !important;
+      height: auto !important;
+      max-height: 100% !important;
+      object-fit: contain !important;
       border-radius: 1rem !important;
       z-index: 1 !important;
       transition: transform 0.2s ease-out;
@@ -246,7 +246,7 @@
     <section id="scannerSection" class="space-y-4 transition-all duration-300">
 
       <!-- Viewfinder Container -->
-      <div id="viewfinderWrapper" class="relative w-full aspect-[4/3] sm:aspect-square bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl select-none">
+      <div id="viewfinderWrapper" class="relative w-full aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl select-none">
         
         <!-- html5-qrcode target -->
         <div id="reader" class="w-full h-full"></div>
@@ -255,7 +255,7 @@
         <div id="cameraOverlay" class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-4">
           
           <!-- Targeting Box (Wide 1D barcode aspect ratio) -->
-          <div class="relative w-[86%] max-w-[290px] h-36 rounded-xl border border-emerald-500/40 bg-emerald-500/5 shadow-[0_0_25px_rgba(16,185,129,0.15)]">
+          <div id="barcodeTarget" class="relative w-[94%] h-[38%] min-h-[50px] max-h-[130px] rounded-xl border border-emerald-500/40 bg-emerald-500/5 shadow-[0_0_25px_rgba(16,185,129,0.15)]">
             <!-- Corners -->
             <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-emerald-400 rounded-tl-lg"></div>
             <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-emerald-400 rounded-tr-lg"></div>
@@ -324,7 +324,7 @@
       </div>
 
       <!-- Quick Upload & Camera Restart Bar -->
-      <div class="flex items-center justify-between gap-2 px-1">
+      <div class="flex flex-wrap items-center justify-between gap-2 px-1">
         <label for="imageUploadInput" class="flex-1 py-2 px-3 rounded-xl glass-pill text-xs font-medium text-slate-300 hover:text-white flex items-center justify-center space-x-2 cursor-pointer transition">
           <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
@@ -333,12 +333,25 @@
         </label>
         <input type="file" id="imageUploadInput" accept="image/*" capture="environment" class="hidden" />
 
+        <button id="torchBtn" type="button" aria-pressed="false" class="hidden py-2 px-3 rounded-xl glass-pill text-xs font-medium text-slate-300 hover:text-white items-center justify-center space-x-1.5 transition">
+          <svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 18h6m-5 3h4m-7-9a5 5 0 1110 0c0 1.8-.95 2.75-1.75 3.55-.55.55-1.05 1.05-1.25 1.95h-4c-.2-.9-.7-1.4-1.25-1.95C7.95 14.75 7 13.8 7 12z"/>
+          </svg>
+          <span id="torchBtnText">Light</span>
+        </button>
+
         <button id="restartCameraBtn" class="py-2 px-3 rounded-xl glass-pill text-xs font-medium text-slate-300 hover:text-white flex items-center justify-center space-x-1.5 transition">
           <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
           </svg>
           <span>Restart Camera</span>
         </button>
+      </div>
+
+      <div id="zoomControl" class="hidden items-center gap-3 px-3 py-2 rounded-xl glass-pill">
+        <label for="zoomRange" class="text-[11px] font-semibold text-slate-300 whitespace-nowrap">Camera zoom</label>
+        <input id="zoomRange" type="range" min="1" max="1" step="0.1" value="1" class="flex-1 accent-emerald-500" />
+        <span id="zoomValue" class="w-10 text-right text-[11px] font-mono font-semibold text-emerald-300">1.0x</span>
       </div>
 
       <!-- Manual Barcode Search Card -->
@@ -845,7 +858,10 @@
         soundEnabled: localStorage.getItem(APP_CONFIG.soundStorageKey) !== 'false',
         currentProduct: null,
         recentScans: [],
-        isCheckingPermission: false
+        isCheckingPermission: false,
+        cameraCapabilities: null,
+        torchEnabled: false,
+        zoomApplyTimer: null
       };
 
       // --- DOM ELEMENT REFERENCES ---
@@ -858,6 +874,7 @@
         // Overlays & Cameras
         viewfinderWrapper: document.getElementById('viewfinderWrapper'),
         cameraOverlay: document.getElementById('cameraOverlay'),
+        barcodeTarget: document.getElementById('barcodeTarget'),
         overlayHint: document.getElementById('overlayHint'),
         cameraErrorOverlay: document.getElementById('cameraErrorOverlay'),
         cameraErrorTitle: document.getElementById('cameraErrorTitle'),
@@ -871,6 +888,11 @@
         reloadPageBtn: document.getElementById('reloadPageBtn'),
         restartCameraBtn: document.getElementById('restartCameraBtn'),
         imageUploadInput: document.getElementById('imageUploadInput'),
+        torchBtn: document.getElementById('torchBtn'),
+        torchBtnText: document.getElementById('torchBtnText'),
+        zoomControl: document.getElementById('zoomControl'),
+        zoomRange: document.getElementById('zoomRange'),
+        zoomValue: document.getElementById('zoomValue'),
         // Manual Search
         manualBarcodeForm: document.getElementById('manualBarcodeForm'),
         manualBarcodeInput: document.getElementById('manualBarcodeInput'),
@@ -1147,7 +1169,27 @@
       }
 
       // --- CAMERA LIFECYCLE ---
+      function resetCameraControls() {
+        if (state.zoomApplyTimer) {
+          clearTimeout(state.zoomApplyTimer);
+          state.zoomApplyTimer = null;
+        }
+        state.cameraCapabilities = null;
+        state.torchEnabled = false;
+        dom.torchBtn.classList.add('hidden');
+        dom.torchBtn.classList.remove('flex', 'bg-amber-500/15', 'border-amber-400/40', 'text-amber-200');
+        dom.torchBtn.setAttribute('aria-pressed', 'false');
+        dom.torchBtnText.textContent = 'Light';
+        dom.zoomControl.classList.add('hidden');
+        dom.zoomControl.classList.remove('flex');
+        dom.zoomRange.value = '1';
+        dom.zoomValue.textContent = '1.0x';
+        dom.barcodeTarget.style.removeProperty('width');
+        dom.barcodeTarget.style.removeProperty('height');
+      }
+
       async function resetScannerInstance() {
+        resetCameraControls();
         if (state.html5QrCode) {
           try {
             if (state.isScannerActive) {
@@ -1165,6 +1207,121 @@
         }
         state.isScannerActive = false;
         state.isPaused = false;
+      }
+
+      function getRetailBarcodeFormats() {
+        return [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E
+        ];
+      }
+
+      function createBarcodeScanner() {
+        return new Html5Qrcode('reader', {
+          formatsToSupport: getRetailBarcodeFormats(),
+          useBarCodeDetectorIfSupported: true,
+          verbose: false
+        });
+      }
+
+      function updateTorchUI() {
+        dom.torchBtn.setAttribute('aria-pressed', state.torchEnabled ? 'true' : 'false');
+        dom.torchBtnText.textContent = state.torchEnabled ? 'Light on' : 'Light';
+        dom.torchBtn.classList.toggle('bg-amber-500/15', state.torchEnabled);
+        dom.torchBtn.classList.toggle('border-amber-400/40', state.torchEnabled);
+        dom.torchBtn.classList.toggle('text-amber-200', state.torchEnabled);
+      }
+
+      function syncScanTargetToVideo() {
+        const video = document.querySelector('#reader video');
+        if (!video) return;
+        const targetWidth = Math.max(50, Math.floor(video.clientWidth * 0.94));
+        const targetHeight = Math.max(50, Math.floor(Math.min(video.clientHeight * 0.38, 130)));
+        dom.barcodeTarget.style.width = `${targetWidth}px`;
+        dom.barcodeTarget.style.height = `${targetHeight}px`;
+      }
+
+      async function configureRunningCamera() {
+        if (!state.html5QrCode || !state.isScannerActive) return;
+
+        let capabilities;
+        try {
+          capabilities = state.html5QrCode.getRunningTrackCapabilities();
+          state.cameraCapabilities = capabilities;
+        } catch (err) {
+          console.info('Camera capability controls are unavailable:', err);
+          return;
+        }
+        if (!capabilities) return;
+
+        // Apply continuous autofocus only after confirming that the camera
+        // supports it. An unsupported focus request must not prevent scanning.
+        if (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes('continuous')) {
+          try {
+            await state.html5QrCode.applyVideoConstraints({
+              advanced: [{ focusMode: 'continuous' }]
+            });
+          } catch (err) {
+            console.info('Continuous autofocus could not be applied:', err);
+          }
+        }
+
+        if (capabilities.torch === true) {
+          dom.torchBtn.classList.remove('hidden');
+          dom.torchBtn.classList.add('flex');
+          updateTorchUI();
+        }
+
+        const zoom = capabilities.zoom;
+        if (zoom && Number.isFinite(zoom.min) && Number.isFinite(zoom.max) && zoom.max > zoom.min) {
+          let currentZoom = zoom.min;
+          try {
+            const settings = state.html5QrCode.getRunningTrackSettings();
+            if (Number.isFinite(settings.zoom)) currentZoom = settings.zoom;
+          } catch (err) {
+            // Use the camera's minimum zoom when settings are unavailable.
+          }
+
+          currentZoom = Math.min(zoom.max, Math.max(zoom.min, currentZoom));
+          dom.zoomRange.min = String(zoom.min);
+          dom.zoomRange.max = String(zoom.max);
+          dom.zoomRange.step = String(zoom.step || 0.1);
+          dom.zoomRange.value = String(currentZoom);
+          dom.zoomValue.textContent = `${currentZoom.toFixed(1)}x`;
+          dom.zoomControl.classList.remove('hidden');
+          dom.zoomControl.classList.add('flex');
+        }
+      }
+
+      async function toggleTorch() {
+        if (!state.html5QrCode || !state.isScannerActive || !state.cameraCapabilities?.torch) return;
+        const nextValue = !state.torchEnabled;
+        try {
+          await state.html5QrCode.applyVideoConstraints({
+            advanced: [{ torch: nextValue }]
+          });
+          state.torchEnabled = nextValue;
+          updateTorchUI();
+        } catch (err) {
+          console.warn('Unable to change camera light:', err);
+        }
+      }
+
+      async function applyCameraZoom(value) {
+        if (!state.html5QrCode || !state.isScannerActive || !state.cameraCapabilities?.zoom) return;
+        const zoom = state.cameraCapabilities.zoom;
+        const clampedValue = Math.min(zoom.max, Math.max(zoom.min, Number(value)));
+        if (!Number.isFinite(clampedValue)) return;
+
+        try {
+          await state.html5QrCode.applyVideoConstraints({
+            advanced: [{ zoom: clampedValue }]
+          });
+        } catch (err) {
+          console.warn('Unable to change camera zoom:', err);
+        }
       }
 
       async function cleanupAndRestartScanner() {
@@ -1206,41 +1363,24 @@
         // Clean up previous instance and DOM completely
         await resetScannerInstance();
 
-        // Retail food barcode formats only, reducing work per frame.
-        const supportedFormats = [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E
-        ];
-
-        state.html5QrCode = new Html5Qrcode("reader", {
-          formatsToSupport: supportedFormats,
-          verbose: false,
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true
-          }
-        });
+        // Retail food barcode formats only, reducing decoder work per frame.
+        state.html5QrCode = createBarcodeScanner();
 
         // videoConstraints contains the complete camera request because
         // html5-qrcode uses it instead of cameraIdentifier when supplied.
         const cameraIdentifier = { facingMode: 'environment' };
         const scanConfig = {
-          fps: 15,
+          fps: 20,
           qrbox: (viewfinderWidth, viewfinderHeight) => ({
-            width: Math.max(50, Math.floor(Math.min(viewfinderWidth * 0.86, 290))),
-            height: Math.max(50, Math.floor(Math.min(viewfinderHeight * 0.45, 144)))
+            width: Math.max(50, Math.floor(viewfinderWidth * 0.94)),
+            height: Math.max(50, Math.floor(Math.min(viewfinderHeight * 0.38, 130)))
           }),
           disableFlip: true,
           videoConstraints: {
-            facingMode: 'environment',
-            // Advanced sets are optional: older phones ignore unsupported
-            // focus/zoom preferences while modern phones start zoomed without
-            // reconfiguring an already-running iOS camera stream.
-            advanced: [
-              { focusMode: 'continuous' },
-              { zoom: 2.0 }
-            ]
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 960 },
+            aspectRatio: { ideal: 4 / 3 }
           }
         };
 
@@ -1257,6 +1397,8 @@
           state.isScannerActive = true;
           state.isPaused = false;
           hideCameraError();
+          syncScanTargetToVideo();
+          await configureRunningCamera();
         } catch (err) {
           console.error('Camera start failed:', err);
           showCameraError(formatCameraErrorMessage(err));
@@ -1392,10 +1534,11 @@
         dom.loadingBarcodeText.textContent = 'Scanning image file...';
 
         try {
-          if (!state.html5QrCode) {
-            state.html5QrCode = new Html5Qrcode("reader");
-          }
-          const decodedText = await state.html5QrCode.scanFile(file, true);
+          // File scanning and live camera scanning are mutually exclusive in
+          // html5-qrcode, so fully stop the camera before decoding the photo.
+          await resetScannerInstance();
+          state.html5QrCode = createBarcodeScanner();
+          const decodedText = await state.html5QrCode.scanFile(file, false);
           if (decodedText) {
             playScanFeedback();
             fetchProductData(decodedText.trim());
@@ -1844,6 +1987,16 @@
         dom.retryCameraBtn.addEventListener('click', requestCameraPermissionDirectly);
         dom.reloadPageBtn.addEventListener('click', () => window.location.reload());
         dom.imageUploadInput.addEventListener('change', handleImageUpload);
+        dom.torchBtn.addEventListener('click', toggleTorch);
+        dom.zoomRange.addEventListener('input', (event) => {
+          const value = Number(event.target.value);
+          dom.zoomValue.textContent = `${value.toFixed(1)}x`;
+          if (state.zoomApplyTimer) clearTimeout(state.zoomApplyTimer);
+          state.zoomApplyTimer = setTimeout(() => {
+            state.zoomApplyTimer = null;
+            applyCameraZoom(value);
+          }, 120);
+        });
 
         // Manual Barcode Form
         dom.manualBarcodeForm.addEventListener('submit', (e) => {
